@@ -2,6 +2,7 @@
 FiscalSpy — API Routes: Documents
 """
 
+from datetime import datetime, time, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -35,19 +36,36 @@ async def get_documents(
     status:      str | None = Query(None),
     uf:          str | None = Query(None),
     cnpj:        str | None = Query(None),
+    data_inicio: str | None = Query(None, description="Data inicial (YYYY-MM-DD)"),
+    data_fim:    str | None = Query(None, description="Data final (YYYY-MM-DD)"),
     page:        int        = Query(1, ge=1),
     page_size:   int        = Query(25, ge=1, le=100),
     current_user: User         = Depends(get_current_user),
     org:          Organization = Depends(get_current_org),
     db:           AsyncSession = Depends(get_db),
 ):
+    parsed_inicio = None
+    parsed_fim = None
+    try:
+        if data_inicio:
+            parsed_inicio = datetime.fromisoformat(data_inicio).replace(hour=0, minute=0, second=0, microsecond=0)
+            if parsed_inicio.tzinfo is None:
+                parsed_inicio = parsed_inicio.replace(tzinfo=timezone.utc)
+        if data_fim:
+            fim_base = datetime.fromisoformat(data_fim)
+            parsed_fim = datetime.combine(fim_base.date(), time.max).replace(tzinfo=fim_base.tzinfo or timezone.utc)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Datas inválidas. Use o formato YYYY-MM-DD")
+
     filters = DocumentFilter(
-        doc_type  = doc_type,
-        status    = status,
-        uf        = uf,
-        cnpj      = cnpj,
-        page      = page,
-        page_size = page_size,
+        doc_type    = doc_type,
+        status      = status,
+        uf          = uf,
+        cnpj        = cnpj,
+        data_inicio = parsed_inicio,
+        data_fim    = parsed_fim,
+        page        = page,
+        page_size   = page_size,
     )
     total, items = await list_documents(db, org.id, filters)
     return DocumentListOut(total=total, page=page, page_size=page_size, items=items)
