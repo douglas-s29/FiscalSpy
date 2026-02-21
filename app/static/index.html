@@ -1,0 +1,1841 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FiscalSpy — Gestão de Documentos Fiscais</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ─── TOKENS ─── */
+:root {
+  --radius: 8px; --radius-lg: 12px; --radius-sm: 5px;
+  --transition: 0.18s ease;
+  --font: 'Geist', system-ui, sans-serif;
+  --mono: 'Geist Mono', monospace;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.08);
+  --shadow: 0 4px 12px rgba(0,0,0,.12);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,.2);
+  --sidebar-w: 240px;
+}
+[data-theme="dark"] {
+  --bg-base:#0f1117; --bg-surface:#161b24; --bg-overlay:#1c2333; --bg-hover:#1f2d3d;
+  --border:#252f3f; --border-sub:#1e2635;
+  --text:#e8edf3; --text-2:#7a90a8; --text-3:#4a5e72; --text-inv:#0f1117;
+  --accent:#2563eb; --accent-h:#1d4fd7; --accent-sub:rgba(37,99,235,.12); --accent-b:rgba(37,99,235,.3);
+  --green:#10b981; --green-s:rgba(16,185,129,.1);
+  --red:#ef4444;   --red-s:rgba(239,68,68,.1);
+  --amber:#f59e0b; --amber-s:rgba(245,158,11,.1);
+  --purple:#8b5cf6;--purple-s:rgba(139,92,246,.1);
+}
+[data-theme="light"] {
+  --bg-base:#f5f6fa; --bg-surface:#fff; --bg-overlay:#f0f2f7; --bg-hover:#f0f4f8;
+  --border:#e2e8f0; --border-sub:#edf1f7;
+  --text:#1a2033; --text-2:#4a5a72; --text-3:#94a3b8; --text-inv:#fff;
+  --accent:#2563eb; --accent-h:#1d4fd7; --accent-sub:rgba(37,99,235,.08); --accent-b:rgba(37,99,235,.25);
+  --green:#059669; --green-s:rgba(5,150,105,.08);
+  --red:#dc2626;   --red-s:rgba(220,38,38,.08);
+  --amber:#d97706; --amber-s:rgba(217,119,6,.08);
+  --purple:#7c3aed;--purple-s:rgba(124,58,237,.08);
+  --shadow-sm:0 1px 3px rgba(0,0,0,.05); --shadow:0 4px 12px rgba(0,0,0,.07); --shadow-lg:0 12px 40px rgba(0,0,0,.12);
+}
+
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--font);font-size:14px;background:var(--bg-base);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;transition:background var(--transition),color var(--transition)}
+button{cursor:pointer;font-family:var(--font)}
+input,select,textarea{font-family:var(--font)}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px}
+
+/* ─── AUTH SCREEN ─── */
+#auth-screen {
+  min-height:100vh; display:none; align-items:center; justify-content:center;
+  background:var(--bg-base); padding:20px;
+}
+.auth-card {
+  background:var(--bg-surface); border:1px solid var(--border); border-radius:16px;
+  padding:40px; width:420px; max-width:100%; box-shadow:var(--shadow-lg);
+}
+.auth-logo { display:flex; align-items:center; gap:10px; margin-bottom:28px; }
+.auth-logo-mark {
+  width:36px; height:36px; background:var(--accent); border-radius:9px;
+  display:flex; align-items:center; justify-content:center;
+}
+.auth-logo-mark svg { width:18px; height:18px; fill:white; }
+.auth-logo-name { font-size:18px; font-weight:700; letter-spacing:-.4px; }
+.auth-logo-name span { color:var(--accent); }
+.auth-tabs { display:flex; gap:4px; background:var(--bg-overlay); padding:3px; border-radius:var(--radius); margin-bottom:24px; }
+.auth-tab { flex:1; padding:8px; border:none; background:transparent; border-radius:calc(var(--radius) - 2px); font-size:13px; font-weight:500; color:var(--text-2); cursor:pointer; transition:all var(--transition); }
+.auth-tab.active { background:var(--bg-surface); color:var(--text); box-shadow:var(--shadow-sm); }
+[data-theme="dark"] .auth-tab.active { background:var(--bg-hover); }
+.auth-title { font-size:20px; font-weight:700; margin-bottom:4px; }
+.auth-sub { font-size:13px; color:var(--text-2); margin-bottom:24px; }
+.form-group { margin-bottom:14px; }
+.form-label { display:block; font-size:11.5px; font-weight:600; color:var(--text-2); letter-spacing:.04em; text-transform:uppercase; margin-bottom:6px; }
+.form-input {
+  width:100%; height:40px; padding:0 12px; background:var(--bg-overlay);
+  border:1px solid var(--border); border-radius:var(--radius); color:var(--text);
+  font-size:14px; outline:none; transition:all var(--transition);
+}
+.form-input:focus { border-color:var(--accent); background:var(--bg-surface); box-shadow:0 0 0 3px var(--accent-sub); }
+.form-input::placeholder { color:var(--text-3); }
+.form-input.error { border-color:var(--red); }
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.btn-auth {
+  width:100%; height:42px; background:var(--accent); border:none; border-radius:var(--radius);
+  color:#fff; font-size:14px; font-weight:600; cursor:pointer; margin-top:8px;
+  transition:all var(--transition); display:flex; align-items:center; justify-content:center; gap:8px;
+}
+.btn-auth:hover { background:var(--accent-h); }
+.btn-auth:disabled { opacity:.6; cursor:not-allowed; }
+.auth-error {
+  background:var(--red-s); border:1px solid rgba(239,68,68,.2); border-radius:var(--radius);
+  color:var(--red); padding:10px 12px; font-size:13px; margin-bottom:14px; display:none;
+}
+.auth-theme {
+  position:absolute; top:16px; right:16px;
+  background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--radius);
+  color:var(--text-2); width:34px; height:34px; display:flex; align-items:center; justify-content:center; cursor:pointer;
+  transition:all var(--transition);
+}
+.auth-theme:hover { color:var(--text); }
+
+/* ─── APP LAYOUT ─── */
+#app { display:none; min-height:100vh; }
+.layout { display:flex; min-height:100vh; }
+
+/* ─── SIDEBAR ─── */
+.sidebar {
+  width:var(--sidebar-w); background:var(--bg-surface); border-right:1px solid var(--border);
+  display:flex; flex-direction:column; position:fixed; left:0; top:0; bottom:0; z-index:100;
+  transition:background var(--transition);
+}
+.sidebar-logo { padding:18px 16px 14px; border-bottom:1px solid var(--border-sub); display:flex; align-items:center; gap:10px; }
+.logo-mark { width:30px; height:30px; background:var(--accent); border-radius:7px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.logo-mark svg { width:15px; height:15px; fill:white; }
+.logo-name { font-size:15px; font-weight:700; letter-spacing:-.3px; }
+.logo-name span { color:var(--accent); }
+.sidebar-nav { flex:1; padding:10px 8px; overflow-y:auto; display:flex; flex-direction:column; gap:1px; }
+.nav-section { font-size:10px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); padding:10px 10px 4px; }
+.nav-item {
+  display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:var(--radius);
+  color:var(--text-2); font-size:13.5px; font-weight:450; cursor:pointer; transition:all var(--transition);
+  border:1px solid transparent; background:none; width:100%; text-align:left;
+}
+.nav-item svg { width:15px; height:15px; flex-shrink:0; opacity:.8; }
+.nav-item:hover { background:var(--bg-hover); color:var(--text); }
+.nav-item.active { background:var(--accent-sub); border-color:var(--accent-b); color:var(--accent); font-weight:500; }
+.nav-item.active svg { opacity:1; }
+.nav-badge { margin-left:auto; font-size:10px; font-weight:600; padding:1px 7px; border-radius:10px; background:var(--bg-overlay); color:var(--text-2); font-family:var(--mono); }
+.nav-badge.alert { background:var(--red-s); color:var(--red); }
+.sidebar-footer { padding:12px; border-top:1px solid var(--border-sub); }
+.org-card { display:flex; align-items:center; gap:9px; padding:9px 10px; background:var(--bg-overlay); border-radius:var(--radius); cursor:pointer; transition:background var(--transition); }
+.org-card:hover { background:var(--bg-hover); }
+.org-av { width:26px; height:26px; background:var(--accent); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:#fff; flex-shrink:0; }
+.org-info { flex:1; min-width:0; }
+.org-name { font-size:12px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.org-plan { font-size:10px; color:var(--text-3); }
+
+/* ─── TOPBAR ─── */
+.main { margin-left:var(--sidebar-w); flex:1; display:flex; flex-direction:column; }
+.topbar {
+  height:56px; background:var(--bg-surface); border-bottom:1px solid var(--border);
+  padding:0 24px; display:flex; align-items:center; gap:12px;
+  position:sticky; top:0; z-index:50; transition:background var(--transition);
+}
+.topbar-bc { flex:1; font-size:13px; color:var(--text-3); }
+.topbar-bc span { color:var(--text); font-weight:500; }
+.status-pill {
+  display:flex; align-items:center; gap:6px; padding:5px 11px;
+  background:var(--green-s); border:1px solid rgba(16,185,129,.2); border-radius:20px;
+  font-size:11.5px; font-weight:500; color:var(--green); font-family:var(--mono);
+}
+.status-dot { width:6px; height:6px; background:var(--green); border-radius:50%; animation:blink 2.5s infinite; }
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:.3} }
+.btn { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border-radius:var(--radius); font-size:13px; font-weight:500; border:1px solid transparent; transition:all var(--transition); line-height:1; cursor:pointer; }
+.btn-ghost { background:transparent; border-color:var(--border); color:var(--text-2); }
+.btn-ghost:hover { background:var(--bg-hover); color:var(--text); }
+.btn-primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+.btn-primary:hover { background:var(--accent-h); }
+.btn-danger { background:var(--red-s); color:var(--red); border-color:rgba(239,68,68,.2); }
+.btn-danger:hover { background:var(--red); color:#fff; }
+.theme-toggle { width:34px; height:34px; background:var(--bg-overlay); border:1px solid var(--border); border-radius:var(--radius); color:var(--text-2); display:flex; align-items:center; justify-content:center; transition:all var(--transition); cursor:pointer; }
+.theme-toggle:hover { color:var(--text); }
+.avatar { width:30px; height:30px; background:var(--accent); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:600; color:#fff; cursor:pointer; flex-shrink:0; position:relative; }
+.avatar-menu {
+  position:absolute; top:38px; right:0; width:180px;
+  background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--radius-lg);
+  box-shadow:var(--shadow-lg); padding:6px; display:none; z-index:200;
+}
+.avatar-menu.open { display:block; }
+.avatar-menu-item { display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:var(--radius); font-size:13px; color:var(--text-2); cursor:pointer; transition:background var(--transition); border:none; background:none; width:100%; text-align:left; }
+.avatar-menu-item:hover { background:var(--bg-hover); color:var(--text); }
+.avatar-menu-item.danger { color:var(--red); }
+.avatar-menu-item.danger:hover { background:var(--red-s); }
+.avatar-menu-sep { height:1px; background:var(--border-sub); margin:4px 0; }
+
+/* ─── PAGE ─── */
+.page { padding:24px; }
+.page-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:24px; }
+.page-title { font-size:20px; font-weight:700; letter-spacing:-.3px; margin-bottom:3px; }
+.page-sub { font-size:13px; color:var(--text-2); }
+.header-actions { display:flex; gap:8px; }
+
+/* ─── SEARCH ─── */
+.search-panel { background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:18px; margin-bottom:20px; box-shadow:var(--shadow-sm); }
+.doc-tabs { display:flex; gap:4px; background:var(--bg-overlay); padding:3px; border-radius:var(--radius); width:fit-content; margin-bottom:16px; }
+.doc-tab { padding:6px 16px; border-radius:calc(var(--radius) - 2px); font-size:12.5px; font-weight:500; cursor:pointer; border:none; background:transparent; color:var(--text-2); transition:all var(--transition); }
+.doc-tab.active { background:var(--bg-surface); color:var(--text); box-shadow:var(--shadow-sm); }
+[data-theme="dark"] .doc-tab.active { background:var(--bg-hover); }
+.search-fields { display:grid; grid-template-columns:2fr 1.2fr 1fr 1fr auto; gap:10px; align-items:end; }
+.field { display:flex; flex-direction:column; gap:5px; }
+.field label { font-size:11px; font-weight:600; color:var(--text-3); letter-spacing:.04em; text-transform:uppercase; }
+.field input,.field select { height:36px; padding:0 11px; background:var(--bg-overlay); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-size:13.5px; outline:none; transition:all var(--transition); width:100%; }
+.field input::placeholder { color:var(--text-3); }
+.field input:focus,.field select:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-sub); }
+.field select option { background:var(--bg-overlay); }
+
+/* ─── KPI ─── */
+.kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
+.kpi-card { background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:18px 20px; box-shadow:var(--shadow-sm); transition:box-shadow var(--transition),border-color var(--transition); }
+.kpi-card:hover { box-shadow:var(--shadow); border-color:var(--accent-b); }
+.kpi-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.kpi-label { font-size:12px; color:var(--text-2); font-weight:500; }
+.kpi-icon { width:30px; height:30px; border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center; }
+.kpi-icon svg { width:14px; height:14px; }
+.kpi-icon.blue{background:var(--accent-sub);color:var(--accent)} .kpi-icon.green{background:var(--green-s);color:var(--green)} .kpi-icon.amber{background:var(--amber-s);color:var(--amber)} .kpi-icon.purple{background:var(--purple-s);color:var(--purple)}
+.kpi-value { font-size:26px; font-weight:700; letter-spacing:-1px; line-height:1; margin-bottom:6px; font-family:var(--mono); }
+.kpi-change { font-size:11.5px; font-weight:500; display:flex; align-items:center; gap:4px; }
+.kpi-change.up{color:var(--green)} .kpi-change.down{color:var(--red)}
+.kpi-change .vs{color:var(--text-3);font-weight:400}
+
+/* ─── TWO COL ─── */
+.two-col { display:grid; grid-template-columns:1fr 340px; gap:14px; margin-bottom:20px; }
+.right-col { display:flex; flex-direction:column; gap:14px; }
+
+/* ─── CARD ─── */
+.card { background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--radius-lg); box-shadow:var(--shadow-sm); overflow:hidden; }
+.card-header { padding:14px 18px; border-bottom:1px solid var(--border-sub); display:flex; align-items:center; justify-content:space-between; }
+.card-title { font-size:13.5px; font-weight:600; display:flex; align-items:center; gap:7px; }
+.card-title svg { width:14px; height:14px; color:var(--text-3); }
+.card-action { font-size:12px; color:var(--accent); background:none; border:none; cursor:pointer; font-weight:500; transition:opacity var(--transition); }
+.card-action:hover { opacity:.75; }
+
+/* ─── TABLE ─── */
+.table-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; }
+thead th { padding:10px 14px; text-align:left; font-size:11px; font-weight:600; color:var(--text-3); letter-spacing:.06em; text-transform:uppercase; background:var(--bg-overlay); border-bottom:1px solid var(--border); white-space:nowrap; }
+tbody tr { border-bottom:1px solid var(--border-sub); transition:background var(--transition); cursor:pointer; }
+tbody tr:last-child { border-bottom:none; }
+tbody tr:hover { background:var(--bg-hover); }
+td { padding:11px 14px; font-size:13px; vertical-align:middle; white-space:nowrap; }
+.td-p { font-weight:500; color:var(--text); }
+.td-s { font-size:11.5px; color:var(--text-3); font-family:var(--mono); margin-top:2px; }
+
+/* ─── BADGES ─── */
+.badge { display:inline-flex; align-items:center; gap:4px; padding:3px 9px; border-radius:20px; font-size:11px; font-weight:600; white-space:nowrap; }
+.badge-dot { width:5px; height:5px; border-radius:50%; flex-shrink:0; }
+.badge.nfe{background:var(--accent-sub);color:var(--accent)} .badge.cte{background:var(--green-s);color:var(--green)} .badge.nfse{background:var(--amber-s);color:var(--amber)}
+.badge.auth{background:var(--green-s);color:var(--green)} .badge.cancel{background:var(--red-s);color:var(--red)} .badge.denied{background:var(--amber-s);color:var(--amber)}
+.badge.nfe .badge-dot{background:var(--accent)} .badge.cte .badge-dot{background:var(--green)} .badge.nfse .badge-dot{background:var(--amber)}
+.badge.auth .badge-dot{background:var(--green)} .badge.cancel .badge-dot{background:var(--red)} .badge.denied .badge-dot{background:var(--amber)}
+.val-col { font-weight:600; font-family:var(--mono); font-size:13px; }
+.row-actions { display:flex; gap:5px; justify-content:flex-end; opacity:0; transition:opacity var(--transition); }
+tbody tr:hover .row-actions { opacity:1; }
+.icon-btn { width:28px; height:28px; background:var(--bg-overlay); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text-2); display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all var(--transition); }
+.icon-btn:hover { background:var(--bg-hover); color:var(--text); border-color:var(--accent-b); }
+.icon-btn svg { width:12px; height:12px; }
+
+/* ─── PAGINATION ─── */
+.pagination { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-top:1px solid var(--border-sub); }
+.page-info { font-size:12px; color:var(--text-3); font-family:var(--mono); }
+.page-btns { display:flex; gap:4px; }
+.page-btn { height:28px; padding:0 10px; background:var(--bg-overlay); border:1px solid var(--border); border-radius:var(--radius-sm); font-size:12px; color:var(--text-2); cursor:pointer; transition:all var(--transition); font-family:var(--mono); }
+.page-btn:hover { background:var(--bg-hover); color:var(--text); }
+.page-btn.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+.page-btn:disabled { opacity:.4; cursor:not-allowed; }
+
+/* ─── CHART ─── */
+.chart-wrap { padding:16px 18px 12px; }
+.chart-bars { display:flex; align-items:flex-end; gap:5px; height:80px; }
+.bar-col { flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; }
+.bar-inner { width:100%; border-radius:3px 3px 0 0; background:var(--accent-sub); transition:background var(--transition); cursor:pointer; min-height:3px; }
+.bar-inner:hover,.bar-inner.hi { background:var(--accent); }
+.bar-lbl { font-size:9.5px; color:var(--text-3); font-family:var(--mono); }
+.chart-legend { display:flex; gap:16px; margin-top:12px; padding-top:12px; border-top:1px solid var(--border-sub); }
+.leg-item { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text-2); }
+.leg-dot { width:8px; height:8px; border-radius:2px; }
+
+/* ─── ALERTS PANEL ─── */
+.alert-list { display:flex; flex-direction:column; padding:8px; gap:2px; }
+.alert-row { display:flex; align-items:flex-start; gap:10px; padding:10px; border-radius:var(--radius); cursor:pointer; transition:background var(--transition); }
+.alert-row:hover { background:var(--bg-hover); }
+.alert-ico { width:28px; height:28px; border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
+.alert-ico svg { width:13px; height:13px; }
+.alert-ico.red{background:var(--red-s);color:var(--red)} .alert-ico.amber{background:var(--amber-s);color:var(--amber)} .alert-ico.blue{background:var(--accent-sub);color:var(--accent)} .alert-ico.green{background:var(--green-s);color:var(--green)}
+.alert-body { flex:1; min-width:0; }
+.alert-title { font-size:12.5px; font-weight:500; margin-bottom:2px; }
+.alert-desc { font-size:11.5px; color:var(--text-2); line-height:1.4; }
+.alert-time { font-size:10.5px; color:var(--text-3); font-family:var(--mono); white-space:nowrap; }
+
+/* ─── MONITORS PAGE ─── */
+.monitors-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:14px; }
+.monitor-card { background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:18px; box-shadow:var(--shadow-sm); }
+.monitor-card-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:12px; }
+.monitor-cnpj { font-family:var(--mono); font-size:14px; font-weight:600; margin-bottom:3px; }
+.monitor-desc { font-size:12px; color:var(--text-2); }
+.monitor-tags { display:flex; gap:6px; flex-wrap:wrap; margin-top:12px; }
+.monitor-tag { font-size:10.5px; padding:2px 8px; border-radius:20px; font-weight:500; background:var(--accent-sub); color:var(--accent); font-family:var(--mono); }
+.monitor-footer { display:flex; align-items:center; justify-content:space-between; margin-top:14px; padding-top:12px; border-top:1px solid var(--border-sub); }
+.monitor-sync { font-size:11px; color:var(--text-3); font-family:var(--mono); }
+.online-dot { display:inline-block; width:6px; height:6px; background:var(--green); border-radius:50%; margin-right:5px; box-shadow:0 0 0 2px var(--green-s); }
+
+/* ─── WEBHOOKS PAGE ─── */
+.webhooks-list { display:flex; flex-direction:column; gap:10px; padding:16px; }
+.webhook-item { background:var(--bg-overlay); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; display:flex; align-items:center; gap:14px; }
+.webhook-name { font-size:13.5px; font-weight:600; margin-bottom:3px; }
+.webhook-url { font-size:11.5px; color:var(--text-2); font-family:var(--mono); }
+.webhook-events { display:flex; gap:5px; flex-wrap:wrap; margin-top:8px; }
+.webhook-event { font-size:10px; padding:2px 7px; border-radius:20px; background:var(--accent-sub); color:var(--accent); font-family:var(--mono); }
+
+/* ─── MODAL ─── */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(6px); z-index:500; display:flex; align-items:center; justify-content:center; padding:20px; opacity:0; pointer-events:none; transition:opacity .2s; }
+.modal-overlay.open { opacity:1; pointer-events:all; }
+.modal { background:var(--bg-surface); border:1px solid var(--border); border-radius:14px; width:600px; max-width:100%; max-height:90vh; overflow-y:auto; box-shadow:var(--shadow-lg); transform:translateY(10px) scale(.98); transition:transform .2s,opacity .2s; }
+.modal-overlay.open .modal { transform:translateY(0) scale(1); }
+.modal-head { padding:20px 22px 16px; border-bottom:1px solid var(--border); display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.modal-tag { font-size:10.5px; font-weight:600; text-transform:uppercase; letter-spacing:.08em; color:var(--accent); background:var(--accent-sub); border:1px solid var(--accent-b); padding:2px 8px; border-radius:20px; display:inline-block; margin-bottom:7px; }
+.modal-title { font-size:17px; font-weight:600; letter-spacing:-.3px; }
+.close-btn { width:28px; height:28px; background:var(--bg-overlay); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text-3); display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all var(--transition); flex-shrink:0; }
+.close-btn:hover { color:var(--text); }
+.close-btn svg { width:12px; height:12px; }
+.modal-body { padding:20px 22px; }
+.detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:18px; }
+.detail-label { font-size:10.5px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--text-3); margin-bottom:4px; }
+.detail-value { font-size:13.5px; color:var(--text); }
+.chave-box { grid-column:1/-1; background:var(--bg-overlay); border:1px solid var(--border); border-radius:var(--radius); padding:11px 13px; font-family:var(--mono); font-size:11px; color:var(--text-2); word-break:break-all; cursor:pointer; transition:all var(--transition); line-height:1.7; letter-spacing:.5px; }
+.chave-box:hover { border-color:var(--accent); color:var(--accent); }
+.modal-footer { padding:14px 22px 18px; border-top:1px solid var(--border-sub); display:flex; gap:8px; flex-wrap:wrap; }
+
+/* ─── LOADING ─── */
+.loading-line { height:2px; background:linear-gradient(90deg,transparent,var(--accent),transparent); background-size:300% 100%; animation:loading 1.4s infinite; display:none; }
+.loading-line.show { display:block; }
+@keyframes loading{from{background-position:100% 0}to{background-position:-100% 0}}
+.spinner { width:16px; height:16px; border:2px solid rgba(255,255,255,.3); border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; }
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner.dark { border-color:rgba(37,99,235,.2); border-top-color:var(--accent); }
+
+/* ─── EMPTY ─── */
+.empty { padding:56px 24px; text-align:center; }
+.empty-icon { width:48px; height:48px; background:var(--bg-overlay); border-radius:12px; margin:0 auto 14px; display:flex; align-items:center; justify-content:center; }
+.empty-icon svg { width:22px; height:22px; color:var(--text-3); }
+.empty h3 { font-size:15px; font-weight:600; margin-bottom:5px; }
+.empty p { font-size:13px; color:var(--text-2); }
+
+/* ─── TOAST ─── */
+.toast-wrap { position:fixed; bottom:20px; right:20px; z-index:999; display:flex; flex-direction:column; gap:8px; }
+.toast { background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--radius); padding:12px 16px; font-size:13px; box-shadow:var(--shadow-lg); display:flex; align-items:center; gap:10px; animation:toast-in .2s ease; min-width:260px; }
+@keyframes toast-in{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+.toast.success { border-left:3px solid var(--green); }
+.toast.error   { border-left:3px solid var(--red); }
+.toast.info    { border-left:3px solid var(--accent); }
+
+/* ─── PROGRESS ─── */
+.progress-bg { height:4px; background:var(--bg-overlay); border-radius:2px; overflow:hidden; margin-top:8px; }
+.progress-fill { height:100%; background:var(--accent); border-radius:2px; }
+
+/* ─── FORM ─── */
+.modal-form-group { margin-bottom:14px; }
+.modal-form-label { display:block; font-size:11px; font-weight:600; color:var(--text-3); letter-spacing:.04em; text-transform:uppercase; margin-bottom:6px; }
+.modal-form-input { width:100%; height:38px; padding:0 11px; background:var(--bg-overlay); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-size:13.5px; outline:none; transition:all var(--transition); }
+.modal-form-input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-sub); }
+.modal-form-input::placeholder { color:var(--text-3); }
+.modal-form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.check-row { display:flex; gap:16px; flex-wrap:wrap; }
+.check-label { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text); cursor:pointer; }
+.check-label input { accent-color:var(--accent); width:14px; height:14px; }
+
+/* ─── PAGES (show/hide) ─── */
+.page-view { display:none; }
+.page-view.active { display:block; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ AUTH SCREEN ═══════════════════ -->
+<div id="auth-screen">
+  <button class="auth-theme" onclick="toggleTheme()" style="position:fixed">
+    <svg id="auth-theme-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" style="width:14px;height:14px"><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" stroke-linecap="round"/><circle cx="8" cy="8" r="3"/></svg>
+  </button>
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-mark"><svg viewBox="0 0 16 16"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zM3.5 8a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0z" opacity=".4"/><circle cx="8" cy="8" r="2.5"/></svg></div>
+      <div class="auth-logo-name">Fiscal<span>Spy</span></div>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuth('login',this)">Entrar</button>
+      <button class="auth-tab" onclick="switchAuth('register',this)">Criar conta</button>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="login-form">
+      <div class="auth-title">Bem-vindo de volta</div>
+      <div class="auth-sub">Entre com sua conta para continuar</div>
+      <div class="auth-error" id="login-error"></div>
+      <div class="form-group"><label class="form-label">E-mail</label><input class="form-input" id="login-email" autocomplete="email" type="email" placeholder="seu@email.com"></div>
+      <div class="form-group"><label class="form-label">Senha</label><input class="form-input" id="login-password" autocomplete="current-password" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <button class="btn-auth" id="login-btn" onclick="doLogin()">Entrar</button>
+    </div>
+
+    <!-- REGISTER -->
+    <div id="register-form" style="display:none">
+      <div class="auth-title">Criar sua conta</div>
+      <div class="auth-sub">Comece gratuitamente, sem cartão</div>
+      <div class="auth-error" id="register-error"></div>
+      <div class="form-group"><label class="form-label">Nome da empresa</label><input class="form-input" id="reg-org" autocomplete="organization" autocorrect="off" type="text" placeholder="Acme Brasil Ltda."></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Seu nome</label><input class="form-input" id="reg-name" type="text" placeholder="João Silva"></div>
+        <div class="form-group"><label class="form-label">CNPJ (opcional)</label><input class="form-input" id="reg-cnpj" autocomplete="off" type="text" placeholder="00000000000000" maxlength="14"></div>
+      </div>
+      <div class="form-group"><label class="form-label">E-mail</label><input class="form-input" id="reg-email" type="email" placeholder="seu@empresa.com"></div>
+      <div class="form-group"><label class="form-label">Senha</label><input class="form-input" id="reg-password" type="password" placeholder="Mínimo 8 caracteres" onkeydown="if(event.key==='Enter')doRegister()"></div>
+      <button class="btn-auth" id="register-btn" onclick="doRegister()">Criar conta grátis</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ APP ═══════════════════ -->
+<div id="app">
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark"><svg viewBox="0 0 16 16" fill="white"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zM3.5 8a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0z" opacity=".5"/><circle cx="8" cy="8" r="2.5"/></svg></div>
+      <div class="logo-name">Fiscal<span>Spy</span></div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Principal</div>
+      <button class="nav-item active" onclick="goPage('dashboard',this)">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1.5"/><rect x="9" y="1.5" width="5.5" height="5.5" rx="1.5"/><rect x="1.5" y="9" width="5.5" height="5.5" rx="1.5"/><rect x="9" y="9" width="5.5" height="5.5" rx="1.5"/></svg>
+        Painel
+      </button>
+      <button class="nav-item" onclick="goPage('documents',this)">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6.5" cy="6.5" r="4.5"/><path d="M11.5 11.5l3 3" stroke-linecap="round"/></svg>
+        Busca Fiscal
+      </button>
+      <button class="nav-item" onclick="goPage('monitors',this)">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1v14M1 8h14" stroke-linecap="round"/></svg>
+        Monitoramento
+        <span class="nav-badge alert" id="nav-badge-monitors">0</span>
+      </button>
+      <div class="nav-section">Ferramentas</div>
+      <button class="nav-item" onclick="goPage('configuracoes',this)">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/><path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1M3.4 3.4l.7.7M11.9 11.9l.7.7M3.4 12.6l.7-.7M11.9 4.1l.7-.7" stroke-linecap="round"/></svg>
+        Configurações SEFAZ
+      </button>
+      <button class="nav-item" onclick="goPage('webhooks',this)">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8a6 6 0 1012 0A6 6 0 002 8z"/><path d="M8 5v4l2 1.5" stroke-linecap="round"/></svg>
+        Webhooks
+      </button>
+      <button class="nav-item" onclick="goPage('alerts',this)">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1a5 5 0 00-5 5v2.5L1.5 10.5v1h13v-1L13 8.5V6a5 5 0 00-5-5zM6.5 13a1.5 1.5 0 003 0"/></svg>
+        Alertas
+        <span class="nav-badge alert" id="nav-badge-alerts">0</span>
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="org-card">
+        <div class="org-av" id="org-av">?</div>
+        <div class="org-info">
+          <div class="org-name" id="org-name">Carregando...</div>
+          <div class="org-plan" id="org-plan">—</div>
+        </div>
+      </div>
+      <div class="progress-bg"><div class="progress-fill" id="org-progress" style="width:0%"></div></div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-bc" id="topbar-bc">Painel</div>
+      <div class="status-pill"><div class="status-dot"></div>SEFAZ operacional</div>
+      <button class="btn btn-ghost" onclick="openModal('monitor-create')">+ Monitor</button>
+      <button class="btn btn-primary" onclick="openModal('manifestar')">Manifestar</button>
+      <button class="theme-toggle" onclick="toggleTheme()">
+        <svg id="theme-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" style="width:14px;height:14px"><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" stroke-linecap="round"/><circle cx="8" cy="8" r="3"/></svg>
+      </button>
+      <div class="avatar" id="user-av" onclick="toggleAvatarMenu()">?
+        <div class="avatar-menu" id="avatar-menu">
+          <div style="padding:10px 12px;border-bottom:1px solid var(--border-sub);margin-bottom:4px">
+            <div style="font-size:12px;font-weight:600" id="menu-user-name">—</div>
+            <div style="font-size:11px;color:var(--text-3)" id="menu-user-email">—</div>
+          </div>
+          <button class="avatar-menu-item danger" onclick="doLogout()">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" style="width:13px;height:13px"><path d="M5 13H2a1 1 0 01-1-1V2a1 1 0 011-1h3M10 10l3-3-3-3M13 7H5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Sair
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <div class="loading-line" id="loading-line"></div>
+
+    <!-- ── DASHBOARD ── -->
+    <div class="page page-view active" id="page-dashboard">
+      <div class="page-header">
+        <div><div class="page-title">Painel Geral</div><div class="page-sub">Visão consolidada dos seus documentos fiscais.</div></div>
+        <div class="header-actions">
+          <button class="btn btn-ghost" onclick="exportDocs('csv')">⬇ Exportar CSV</button>
+          <button class="btn btn-ghost" onclick="exportDocs('xml')">📦 Baixar XMLs</button>
+        </div>
+      </div>
+
+      <!-- SEARCH -->
+      <div class="search-panel">
+        <div class="doc-tabs">
+          <button class="doc-tab active" onclick="setDocTab('',this)">Todos</button>
+          <button class="doc-tab" onclick="setDocTab('nfe',this)">NF-e</button>
+          <button class="doc-tab" onclick="setDocTab('cte',this)">CT-e</button>
+          <button class="doc-tab" onclick="setDocTab('nfse',this)">NFS-e</button>
+        </div>
+        <div class="search-fields">
+          <div class="field"><label>CNPJ / Chave de Acesso</label><input id="q-cnpj" autocomplete="off" type="text" placeholder="00.000.000/0000-00 ou chave 44 dígitos"></div>
+          <div class="field"><label>UF</label>
+            <select id="q-uf">
+              <option value="">Todas as UFs</option>
+              <option>SP</option><option>RJ</option><option>MG</option><option>RS</option>
+              <option>SC</option><option>PR</option><option>BA</option><option>CE</option><option>DF</option>
+            </select>
+          </div>
+          <div class="field"><label>Status</label>
+            <select id="q-status">
+              <option value="">Todos</option>
+              <option value="autorizada">Autorizada</option>
+              <option value="cancelada">Cancelada</option>
+              <option value="denegada">Denegada</option>
+            </select>
+          </div>
+          <div class="field"><label>Consultar SEFAZ</label>
+            <input id="q-chave" autocomplete="off" type="text" placeholder="Chave de acesso (44 dígitos)">
+          </div>
+          <div style="display:flex;gap:8px;align-self:flex-end">
+            <button class="btn btn-ghost" style="height:36px" onclick="loadDocuments()">Buscar</button>
+            <button class="btn btn-primary" style="height:36px" onclick="consultaSefaz()">SEFAZ</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI -->
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-header"><div class="kpi-label">NF-e</div><div class="kpi-icon blue"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2h7l3 3v9H3z"/><path d="M10 2v3h3M5 8h6M5 10.5h4"/></svg></div></div><div class="kpi-value" id="kpi-nfe">—</div><div class="kpi-change"><span class="vs">documentos</span></div></div>
+        <div class="kpi-card"><div class="kpi-header"><div class="kpi-label">CT-e</div><div class="kpi-icon green"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="5" width="14" height="8" rx="1.5"/><path d="M4 5V3.5A1.5 1.5 0 015.5 2h5A1.5 1.5 0 0112 3.5V5"/></svg></div></div><div class="kpi-value" id="kpi-cte">—</div><div class="kpi-change"><span class="vs">documentos</span></div></div>
+        <div class="kpi-card"><div class="kpi-header"><div class="kpi-label">NFS-e</div><div class="kpi-icon amber"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="1" width="12" height="14" rx="1.5"/><path d="M5 5.5h6M5 8h6M5 10.5h4"/></svg></div></div><div class="kpi-value" id="kpi-nfse">—</div><div class="kpi-change"><span class="vs">documentos</span></div></div>
+        <div class="kpi-card"><div class="kpi-header"><div class="kpi-label">Volume total</div><div class="kpi-icon purple"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="4" width="14" height="9" rx="1.5"/><path d="M4 4V3a1 1 0 011-1h6a1 1 0 011 1v1"/></svg></div></div><div class="kpi-value" id="kpi-total">—</div><div class="kpi-change"><span class="vs">total</span></div></div>
+      </div>
+
+      <!-- TABLE + SIDEBAR -->
+      <div class="two-col">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1.5 3h13M1.5 8h13M1.5 13h13"/></svg>
+              Documentos recentes
+              <span style="font-size:11px;color:var(--text-3);font-weight:400;font-family:var(--mono)" id="result-count">(0)</span>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th>Tipo</th><th>Número · Série</th><th>Emitente</th><th>Destinatário</th>
+                <th>Valor</th><th>Emissão</th><th>Status</th><th></th>
+              </tr></thead>
+              <tbody id="docs-tbody"></tbody>
+            </table>
+            <div class="empty" id="docs-empty" style="display:none">
+              <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35" stroke-linecap="round"/></svg></div>
+              <h3>Nenhum documento encontrado</h3>
+              <p>Ajuste os filtros ou consulte um CNPJ na SEFAZ.</p>
+            </div>
+          </div>
+          <div class="pagination">
+            <div class="page-info" id="page-info">—</div>
+            <div class="page-btns" id="page-btns"></div>
+          </div>
+        </div>
+
+        <div class="right-col">
+          <!-- CHART -->
+          <div class="card">
+            <div class="card-header"><div class="card-title"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 13l4-5 3 2 3-4 4 7"/></svg>Emissões mensais</div></div>
+            <div class="chart-wrap">
+              <div class="chart-bars" id="chart-bars"></div>
+              <div class="chart-legend">
+                <div class="leg-item"><div class="leg-dot" style="background:var(--accent)"></div>NF-e</div>
+                <div class="leg-item"><div class="leg-dot" style="background:var(--green)"></div>CT-e</div>
+                <div class="leg-item"><div class="leg-dot" style="background:var(--amber)"></div>NFS-e</div>
+              </div>
+            </div>
+          </div>
+          <!-- ALERTS -->
+          <div class="card" style="flex:1">
+            <div class="card-header">
+              <div class="card-title"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1a5 5 0 00-5 5v2.5L1.5 10.5v1h13v-1L13 8.5V6a5 5 0 00-5-5zM6.5 13a1.5 1.5 0 003 0"/></svg>Alertas ativos</div>
+              <button class="card-action" onclick="openModal('alert-create')">+ Novo</button>
+            </div>
+            <div class="alert-list" id="alerts-list-dash"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── DOCUMENTS PAGE ── -->
+    <div class="page page-view" id="page-documents">
+      <div class="page-header">
+        <div><div class="page-title">Busca Fiscal</div><div class="page-sub">Consulte e gerencie todos os documentos fiscais.</div></div>
+      </div>
+      <div style="background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-sm)">
+        <div style="padding:16px 18px;border-bottom:1px solid var(--border-sub)">
+          <input style="width:100%;height:38px;padding:0 12px;background:var(--bg-overlay);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:14px;outline:none" placeholder="Buscar por CNPJ, razão social ou chave de acesso..." oninput="filterDocsPage(this.value)">
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Tipo</th><th>Número</th><th>Emitente</th><th>Destinatário</th><th>Valor</th><th>Emissão</th><th>Status</th><th>Manifestação</th></tr></thead>
+            <tbody id="docs-page-tbody"></tbody>
+          </table>
+          <div class="empty" id="docs-page-empty"><div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35" stroke-linecap="round"/></svg></div><h3>Nenhum documento</h3><p>Faça uma busca no painel principal.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── MONITORS PAGE ── -->
+    <div class="page page-view" id="page-monitors">
+      <div class="page-header">
+        <div><div class="page-title">Monitoramento</div><div class="page-sub">CNPJs monitorados em tempo real na SEFAZ.</div></div>
+        <button class="btn btn-primary" onclick="openModal('monitor-create')">+ Novo Monitor</button>
+      </div>
+      <div class="monitors-grid" id="monitors-grid"></div>
+      <div class="empty" id="monitors-empty" style="display:none"><div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zM12 8v4M12 16h.01"/></svg></div><h3>Nenhum monitor ativo</h3><p>Adicione CNPJs para monitorar documentos automaticamente.</p></div>
+    </div>
+
+    <!-- ── WEBHOOKS PAGE ── -->
+    <div class="page page-view" id="page-webhooks">
+      <div class="page-header">
+        <div><div class="page-title">Webhooks</div><div class="page-sub">Endpoints para receber eventos em tempo real.</div></div>
+        <button class="btn btn-primary" onclick="openModal('webhook-create')">+ Novo Webhook</button>
+      </div>
+      <div class="card">
+        <div class="webhooks-list" id="webhooks-list"></div>
+        <div class="empty" id="webhooks-empty" style="display:none"><div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div><h3>Nenhum webhook</h3><p>Registre um endpoint para receber eventos fiscais.</p></div>
+      </div>
+    </div>
+
+    <!-- ── CONFIGURAÇÕES SEFAZ ── -->
+    <div class="page page-view" id="page-configuracoes">
+      <div class="page">
+        <div class="page-header">
+          <div><div class="page-title">Configurações SEFAZ</div><div class="page-sub">Configure como o FiscalSpy acessa a SEFAZ para cada CNPJ monitorado.</div></div>
+        </div>
+
+        <!-- MODO ATUAL -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-header"><div class="card-title">Modo de acesso atual</div></div>
+          <div id="modo-atual-content" style="padding:20px">
+            <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+              <div id="modo-pill" style="display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--amber-s);border:1px solid rgba(245,158,11,.2);border-radius:var(--radius);font-size:13px;font-weight:600;color:var(--amber)">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" style="width:14px;height:14px"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v4M8 10.5v.5" stroke-linecap="round"/></svg>
+                <span id="modo-label">Sem autenticação — somente consulta por chave</span>
+              </div>
+              <div style="font-size:12px;color:var(--text-2)" id="modo-desc">Configure abaixo para habilitar busca automática de documentos.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- OPÇÕES -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:20px">
+          
+          <!-- OPÇÃO 1: SEM CERTIFICADO (MEI / qualquer empresa) -->
+          <div class="card" style="cursor:pointer;transition:border-color .2s" id="card-publico" onclick="selectModo('publico')">
+            <div style="padding:20px">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+                <div style="width:36px;height:36px;background:var(--green-s);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                  <svg viewBox="0 0 16 16" fill="none" stroke="var(--green)" stroke-width="1.5" style="width:16px;height:16px"><circle cx="8" cy="7" r="3"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke-linecap="round"/></svg>
+                </div>
+                <div>
+                  <div style="font-size:13.5px;font-weight:600">Acesso Público</div>
+                  <div style="font-size:11px;color:var(--green);font-weight:500">MEI · Sem certificado</div>
+                </div>
+              </div>
+              <div style="font-size:12.5px;color:var(--text-2);line-height:1.6;margin-bottom:14px">
+                Consulta NF-e por chave de acesso sem precisar de certificado. Funciona para <strong>qualquer CNPJ</strong> inclusive MEI.
+              </div>
+              <div style="font-size:11px;padding:8px 10px;background:var(--bg-overlay);border-radius:var(--radius-sm);color:var(--text-2)">
+                ✅ Consulta por chave<br>
+                ✅ Salva e indexa documentos<br>
+                ❌ Busca automática por CNPJ<br>
+                ❌ Manifestação destinatário
+              </div>
+            </div>
+          </div>
+
+          <!-- OPÇÃO 2: CÓDIGO DE ACESSO (MEI/ME sem certificado) -->
+          <div class="card" style="cursor:pointer;transition:border-color .2s" id="card-codigo" onclick="selectModo('codigo')">
+            <div style="padding:20px">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+                <div style="width:36px;height:36px;background:var(--accent-sub);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                  <svg viewBox="0 0 16 16" fill="none" stroke="var(--accent)" stroke-width="1.5" style="width:16px;height:16px"><rect x="2" y="5" width="12" height="8" rx="1.5"/><path d="M5 5V4a3 3 0 016 0v1"/></svg>
+                </div>
+                <div>
+                  <div style="font-size:13.5px;font-weight:600">Código de Acesso</div>
+                  <div style="font-size:11px;color:var(--accent);font-weight:500">MEI · ME · Sem certificado</div>
+                </div>
+              </div>
+              <div style="font-size:12.5px;color:var(--text-2);line-height:1.6;margin-bottom:14px">
+                Acesso completo ao DFe usando o código gerado no portal <strong>e-CAC / Receita Federal</strong>. Não precisa de certificado.
+              </div>
+              <div style="font-size:11px;padding:8px 10px;background:var(--bg-overlay);border-radius:var(--radius-sm);color:var(--text-2)">
+                ✅ Busca automática por CNPJ<br>
+                ✅ Baixa todos os documentos<br>
+                ✅ Histórico completo<br>
+                ❌ Manifestação destinatário
+              </div>
+            </div>
+          </div>
+
+          <!-- OPÇÃO 3: CERTIFICADO A1 -->
+          <div class="card" style="cursor:pointer;transition:border-color .2s" id="card-cert" onclick="selectModo('certificado')">
+            <div style="padding:20px">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+                <div style="width:36px;height:36px;background:var(--purple-s);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                  <svg viewBox="0 0 16 16" fill="none" stroke="var(--purple)" stroke-width="1.5" style="width:16px;height:16px"><path d="M8 1l2 2h3v3l2 2-2 2v3h-3l-2 2-2-2H3v-3L1 8l2-2V3h3L8 1z"/><circle cx="8" cy="8" r="2"/></svg>
+                </div>
+                <div>
+                  <div style="font-size:13.5px;font-weight:600">Certificado Digital A1</div>
+                  <div style="font-size:11px;color:var(--purple);font-weight:500">ME · Médio · Grande porte</div>
+                </div>
+              </div>
+              <div style="font-size:12.5px;color:var(--text-2);line-height:1.6;margin-bottom:14px">
+                Acesso total com certificado e-CNPJ A1 (arquivo .pfx). Habilita todas as funcionalidades incluindo manifestação.
+              </div>
+              <div style="font-size:11px;padding:8px 10px;background:var(--bg-overlay);border-radius:var(--radius-sm);color:var(--text-2)">
+                ✅ Acesso completo DFe<br>
+                ✅ Manifestação destinatário<br>
+                ✅ CT-e e NFS-e<br>
+                ✅ Todas as UFs
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- FORMULÁRIO DINÂMICO -->
+        <div id="config-form-area"></div>
+      </div>
+    </div>
+
+    <!-- ── ALERTS PAGE ── -->
+    <div class="page page-view" id="page-alerts">
+      <div class="page-header">
+        <div><div class="page-title">Alertas</div><div class="page-sub">Regras de notificação automática.</div></div>
+        <button class="btn btn-primary" onclick="openModal('alert-create')">+ Novo Alerta</button>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Nome</th><th>Condição</th><th>Canal</th><th>Destino</th><th>Disparos</th><th>Status</th><th></th></tr></thead>
+            <tbody id="alerts-tbody"></tbody>
+          </table>
+          <div class="empty" id="alerts-empty" style="display:none"><div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></div><h3>Nenhum alerta configurado</h3><p>Crie regras para ser notificado automaticamente.</p></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /layout -->
+</div><!-- /app -->
+
+<!-- ═══════════════════ MODAL ═══════════════════ -->
+<div class="modal-overlay" id="modal-overlay" onclick="handleOverlay(event)">
+  <div class="modal">
+    <div class="modal-head">
+      <div><div class="modal-tag" id="modal-tag">INFO</div><div class="modal-title" id="modal-title">—</div></div>
+      <button class="close-btn" onclick="closeModal()"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 1l10 10M11 1L1 11" stroke-linecap="round"/></svg></button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════
+const API = '';  // Same origin — FastAPI serves this file
+let accessToken  = localStorage.getItem('fs_access')  || '';
+let refreshToken = localStorage.getItem('fs_refresh') || '';
+let currentUser  = JSON.parse(localStorage.getItem('fs_user') || 'null');
+let currentOrg   = null;
+let currentPage  = 1;
+let currentDocType = '';
+let allDocs = [];
+
+// ═══════════════════════════════════════════════════════
+// API HELPER
+// ═══════════════════════════════════════════════════════
+async function api(method, path, body, retry=true) {
+  const opts = {
+    method,
+    headers: { 'Content-Type': 'application/json', ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}) },
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const resp = await fetch(API + path, opts);
+
+  if (resp.status === 401 && retry && refreshToken) {
+    const ok = await doRefresh();
+    if (ok) return api(method, path, body, false);
+    doLogout(); return null;
+  }
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+    throw new Error(err.detail || 'Erro na requisição');
+  }
+  if (resp.status === 204) return null;
+  return resp.json();
+}
+
+async function doRefresh() {
+  try {
+    const data = await fetch(API + '/api/v1/auth/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    }).then(r => r.json());
+    if (data.access_token) {
+      accessToken = data.access_token;
+      refreshToken = data.refresh_token;
+      localStorage.setItem('fs_access', accessToken);
+      localStorage.setItem('fs_refresh', refreshToken);
+      return true;
+    }
+  } catch {}
+  return false;
+}
+
+// ═══════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════
+function switchAuth(mode, btn) {
+  document.querySelectorAll('.auth-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('login-form').style.display    = mode === 'login'    ? '' : 'none';
+  document.getElementById('register-form').style.display = mode === 'register' ? '' : 'none';
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  const btn   = document.getElementById('login-btn');
+  errEl.style.display = 'none';
+  if (!email || !pass) { errEl.textContent = 'Preencha e-mail e senha.'; errEl.style.display = 'block'; return; }
+  btn.disabled = true; btn.innerHTML = '<div class="spinner"></div>';
+  try {
+    const data = await fetch(API + '/api/v1/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pass }),
+    }).then(r => { if(!r.ok) throw new Error(); return r.json(); });
+    accessToken = data.access_token; refreshToken = data.refresh_token;
+    localStorage.setItem('fs_access', accessToken);
+    localStorage.setItem('fs_refresh', refreshToken);
+    await loadUserAndOrg();
+    showApp();
+  } catch (e) {
+    errEl.textContent = 'E-mail ou senha incorretos.';
+    errEl.style.display = 'block';
+  } finally { btn.disabled = false; btn.innerHTML = 'Entrar'; }
+}
+
+async function doRegister() {
+  const org  = document.getElementById('reg-org').value.trim();
+  const name = document.getElementById('reg-name').value.trim();
+  const cnpjRaw = document.getElementById('reg-cnpj').value.replace(/\D/g, '');
+  const cnpj = cnpjRaw.length === 14 ? cnpjRaw : null;
+  const email= document.getElementById('reg-email').value.trim();
+  const pass = document.getElementById('reg-password').value;
+  const errEl= document.getElementById('register-error');
+  const btn  = document.getElementById('register-btn');
+  errEl.style.display = 'none';
+  if (!org || !name || !email || !pass) { errEl.textContent = 'Preencha nome da empresa, seu nome, e-mail e senha.'; errEl.style.display = 'block'; return; }
+  if (pass.length < 8) { errEl.textContent = 'A senha deve ter pelo menos 8 caracteres.'; errEl.style.display = 'block'; return; }
+  btn.disabled = true; btn.innerHTML = '<div class="spinner"></div>';
+  try {
+    const resp = await fetch(API + '/api/v1/auth/register', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ org_name: org, full_name: name, email, password: pass, org_cnpj: cnpj }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      let msg = 'Erro ao criar conta.';
+      if (typeof data.detail === 'string') msg = data.detail;
+      else if (Array.isArray(data.detail)) msg = data.detail.map(e => e.msg).join(', ');
+      throw new Error(msg);
+    }
+    accessToken = data.access_token; refreshToken = data.refresh_token;
+    localStorage.setItem('fs_access', accessToken);
+    localStorage.setItem('fs_refresh', refreshToken);
+    await loadUserAndOrg();
+    showApp();
+  } catch (e) {
+    errEl.textContent = e.message || 'Erro ao criar conta.';
+    errEl.style.display = 'block';
+  } finally { btn.disabled = false; btn.innerHTML = 'Criar conta grátis'; }
+}
+
+async function doLogout() {
+  try { await fetch(API + '/api/v1/auth/logout', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ refresh_token: refreshToken }) }); } catch {}
+  accessToken = refreshToken = '';
+  localStorage.removeItem('fs_access'); localStorage.removeItem('fs_refresh'); localStorage.removeItem('fs_user');
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
+  currentUser = null; currentOrg = null;
+}
+
+// ═══════════════════════════════════════════════════════
+// LOAD USER / ORG
+// ═══════════════════════════════════════════════════════
+async function loadUserAndOrg() {
+  try {
+    currentUser = await api('GET', '/api/v1/auth/me');
+    localStorage.setItem('fs_user', JSON.stringify(currentUser));
+    // Update user UI
+    const av = initials(currentUser.full_name);
+    document.getElementById('user-av').textContent = av;
+    document.getElementById('menu-user-name').textContent  = currentUser.full_name;
+    document.getElementById('menu-user-email').textContent = currentUser.email;
+    // Load org info from JWT claims stored in user object
+    const orgName = currentUser.org_name || currentUser.organization?.name || 'Minha Empresa';
+    const orgPlan = currentUser.plan || 'free';
+    const orgLimit = currentUser.docs_limit || 500;
+    document.getElementById('org-name').textContent = orgName;
+    document.getElementById('org-plan').textContent = 'Plano ' + orgPlan + ' · ' + orgLimit + ' docs';
+    document.getElementById('org-av').textContent = initials(orgName);
+  } catch(e) { console.error('loadUserAndOrg:', e); }
+}
+
+function initials(name='') { return name.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase() || '?'; }
+
+function updateOrgUI(org) {
+  currentOrg = org;
+  document.getElementById('org-name').textContent = org.name;
+  document.getElementById('org-plan').textContent = `Plano ${org.plan} · ${org.docs_limit} docs`;
+  document.getElementById('org-av').textContent   = initials(org.name);
+  const pct = Math.min(100, Math.round((allDocs.length / (org.docs_limit||500)) * 100));
+  document.getElementById('org-progress').style.width = pct + '%';
+}
+
+// ═══════════════════════════════════════════════════════
+// SHOW APP
+// ═══════════════════════════════════════════════════════
+function showApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  loadDashboard();
+}
+
+// ═══════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════
+function goPage(name, btn) {
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.getElementById('topbar-bc').innerHTML = `<span>${{dashboard:'Painel',documents:'Busca Fiscal',monitors:'Monitoramento',webhooks:'Webhooks',alerts:'Alertas'}[name]}</span>`;
+  if (name === 'configuracoes') loadConfiguracoes();
+  if (name === 'monitors')  loadMonitors();
+  if (name === 'webhooks')  loadWebhooks();
+  if (name === 'alerts')    loadAlerts();
+  if (name === 'documents') renderDocsPage();
+}
+
+// ═══════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════
+async function loadDashboard() {
+  setLoading(true);
+  try {
+    await loadDocuments();
+    await loadAlertsPanel();
+    renderChart();
+  } finally { setLoading(false); }
+}
+
+// ═══════════════════════════════════════════════════════
+// DOCUMENTS
+// ═══════════════════════════════════════════════════════
+async function loadDocuments(page=1) {
+  setLoading(true);
+  currentPage = page;
+  const cnpj   = document.getElementById('q-cnpj')?.value.replace(/\D/g,'') || '';
+  const uf     = document.getElementById('q-uf')?.value || '';
+  const status = document.getElementById('q-status')?.value || '';
+  let url = `/api/v1/documents?page=${page}&page_size=25`;
+  if (currentDocType) url += `&doc_type=${currentDocType}`;
+  if (cnpj)   url += `&cnpj=${cnpj}`;
+  if (uf)     url += `&uf=${uf}`;
+  if (status) url += `&status=${status}`;
+  try {
+    const data = await api('GET', url);
+    if (!data) return;
+    allDocs = data.items;
+    renderDocsTable(data);
+    updateKPIs(data);
+    if (currentOrg) updateOrgUI(currentOrg);
+  } catch(e) { toast(e.message, 'error'); }
+  finally { setLoading(false); }
+}
+
+function renderDocsTable(data) {
+  const tbody = document.getElementById('docs-tbody');
+  const empty = document.getElementById('docs-empty');
+  const info  = document.getElementById('page-info');
+  const btns  = document.getElementById('page-btns');
+
+  document.getElementById('result-count').textContent = `(${data.total})`;
+
+  if (!data.items.length) {
+    tbody.innerHTML = '';
+    empty.style.display = '';
+    info.textContent = '0 resultados';
+    btns.innerHTML = '';
+    return;
+  }
+  empty.style.display = 'none';
+  tbody.innerHTML = data.items.map(r => `
+    <tr onclick="openDocDetail('${r.id}')">
+      <td><span class="badge ${r.doc_type}"><span class="badge-dot"></span>${r.doc_type.toUpperCase()}</span></td>
+      <td><div class="td-p" style="font-family:var(--mono);font-size:12px">${r.numero.padStart(9,'0')} / ${r.serie}</div><div class="td-s">${r.uf_emitente||'—'}</div></td>
+      <td><div class="td-p" style="max-width:160px;overflow:hidden;text-overflow:ellipsis">${r.razao_emitente||r.cnpj_emitente}</div><div class="td-s">${fmtCNPJ(r.cnpj_emitente)}</div></td>
+      <td><div style="max-width:140px;overflow:hidden;text-overflow:ellipsis;font-size:12.5px;color:var(--text-2)">${r.razao_destinatario||r.cnpj_destinatario||'—'}</div></td>
+      <td><span class="val-col">${fmtVal(r.valor_total)}</span></td>
+      <td style="font-family:var(--mono);font-size:12px;color:var(--text-2)">${fmtDate(r.data_emissao)}</td>
+      <td><span class="badge ${statusClass(r.status)}"><span class="badge-dot"></span>${capitalize(r.status)}</span></td>
+      <td><div class="row-actions">
+        <button class="icon-btn" title="Baixar XML" onclick="event.stopPropagation();dlXml('${r.id}')"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 1v7M3 5l3 3 3-3" stroke-linecap="round" stroke-linejoin="round"/><path d="M1 10h10" stroke-linecap="round"/></svg></button>
+        <button class="icon-btn" title="Manifestar" onclick="event.stopPropagation();openManifestModal('${r.id}')"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 9V3a1 1 0 011-1h6.5L11 4.5V9a1 1 0 01-1 1H2a1 1 0 01-1-1z"/><path d="M7.5 2v2.5H11"/></svg></button>
+      </div></td>
+    </tr>`).join('');
+
+  const total = data.total, ps = data.page_size, p = data.page;
+  const pages = Math.ceil(total / ps);
+  info.textContent = `Exibindo ${(p-1)*ps+1}–${Math.min(p*ps,total)} de ${total}`;
+  let html = `<button class="page-btn" ${p===1?'disabled':''} onclick="loadDocuments(${p-1})">‹</button>`;
+  for (let i = Math.max(1,p-2); i <= Math.min(pages,p+2); i++)
+    html += `<button class="page-btn ${i===p?'active':''}" onclick="loadDocuments(${i})">${i}</button>`;
+  html += `<button class="page-btn" ${p>=pages?'disabled':''} onclick="loadDocuments(${p+1})">›</button>`;
+  btns.innerHTML = html;
+}
+
+function updateKPIs(data) {
+  const nfe = data.items.filter(r=>r.doc_type==='nfe').length;
+  const cte = data.items.filter(r=>r.doc_type==='cte').length;
+  const nfse= data.items.filter(r=>r.doc_type==='nfse').length;
+  const tot = data.items.reduce((a,r)=>a+parseFloat(r.valor_total||0),0);
+  document.getElementById('kpi-nfe').textContent  = data.total;
+  document.getElementById('kpi-cte').textContent  = cte;
+  document.getElementById('kpi-nfse').textContent = nfse;
+  document.getElementById('kpi-total').textContent= fmtValShort(tot);
+}
+
+function renderDocsPage() {
+  const tbody = document.getElementById('docs-page-tbody');
+  const empty = document.getElementById('docs-page-empty');
+  if (!allDocs.length) { tbody.innerHTML=''; empty.style.display=''; return; }
+  empty.style.display = 'none';
+  tbody.innerHTML = allDocs.map(r => `
+    <tr onclick="openDocDetail('${r.id}')">
+      <td><span class="badge ${r.doc_type}"><span class="badge-dot"></span>${r.doc_type.toUpperCase()}</span></td>
+      <td style="font-family:var(--mono);font-size:12px">${r.numero.padStart(9,'0')}/${r.serie}</td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis">${r.razao_emitente||r.cnpj_emitente}</td>
+      <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;color:var(--text-2)">${r.razao_destinatario||r.cnpj_destinatario||'—'}</td>
+      <td class="val-col">${fmtVal(r.valor_total)}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--text-2)">${fmtDate(r.data_emissao)}</td>
+      <td><span class="badge ${statusClass(r.status)}"><span class="badge-dot"></span>${capitalize(r.status)}</span></td>
+      <td>${r.manifestacao ? `<span style="font-size:11px;color:var(--green);font-family:var(--mono)">${manifDesc(r.manifestacao)}</span>` : '<span style="font-size:11px;color:var(--text-3)">Pendente</span>'}</td>
+    </tr>`).join('');
+}
+
+function filterDocsPage(q) {
+  const rows = document.querySelectorAll('#docs-page-tbody tr');
+  rows.forEach(r => r.style.display = r.textContent.toLowerCase().includes(q.toLowerCase()) ? '' : 'none');
+}
+
+// ═══════════════════════════════════════════════════════
+// DOC DETAIL MODAL
+// ═══════════════════════════════════════════════════════
+async function openDocDetail(id) {
+  document.getElementById('modal-tag').textContent   = 'DOCUMENTO FISCAL';
+  document.getElementById('modal-title').textContent = 'Carregando...';
+  document.getElementById('modal-body').innerHTML    = '<div style="display:flex;justify-content:center;padding:40px"><div class="spinner dark"></div></div>';
+  document.getElementById('modal-overlay').classList.add('open');
+  try {
+    const r = await api('GET', `/api/v1/documents/${id}`);
+    document.getElementById('modal-tag').textContent   = `${r.doc_type.toUpperCase()} · ${r.uf_emitente||'—'}`;
+    document.getElementById('modal-title').textContent = `${r.numero.padStart(9,'0')} — Série ${r.serie}`;
+    document.getElementById('modal-body').innerHTML = `
+      <div class="detail-grid">
+        <div><div class="detail-label">Emitente</div><div class="detail-value">${r.razao_emitente||'—'}</div></div>
+        <div><div class="detail-label">CNPJ Emitente</div><div class="detail-value" style="font-family:var(--mono)">${fmtCNPJ(r.cnpj_emitente)}</div></div>
+        <div><div class="detail-label">Destinatário</div><div class="detail-value">${r.razao_destinatario||'—'}</div></div>
+        <div><div class="detail-label">Valor Total</div><div class="detail-value" style="font-size:17px;font-weight:700;color:var(--accent)">${fmtVal(r.valor_total)}</div></div>
+        <div><div class="detail-label">Data de Emissão</div><div class="detail-value" style="font-family:var(--mono)">${fmtDate(r.data_emissao)}</div></div>
+        <div><div class="detail-label">Status SEFAZ</div><div class="detail-value"><span class="badge ${statusClass(r.status)}"><span class="badge-dot"></span>${capitalize(r.status)}</span></div></div>
+        <div><div class="detail-label">Protocolo</div><div class="detail-value" style="font-family:var(--mono)">${r.protocolo||'—'}</div></div>
+        <div><div class="detail-label">Natureza</div><div class="detail-value">${r.natureza_operacao||'—'}</div></div>
+        ${r.manifestacao ? `<div><div class="detail-label">Manifestação</div><div class="detail-value" style="color:var(--green)">${manifDesc(r.manifestacao)}</div></div>` : ''}
+        <div class="chave-box" style="grid-column:1/-1" onclick="copyText('${r.chave_acesso}')">
+          <span style="font-size:10px;color:var(--text-3);display:block;margin-bottom:4px">CHAVE DE ACESSO — clique para copiar</span>
+          ${r.chave_acesso.match(/.{1,4}/g).join(' ')}
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="dlXml('${r.id}')">⬇ Baixar XML</button>
+        <button class="btn btn-ghost" onclick="openManifestModal('${r.id}')">✍ Manifestar</button>
+        <button class="btn btn-ghost" onclick="closeModal()" style="margin-left:auto">Fechar</button>
+      </div>`;
+  } catch(e) { toast(e.message, 'error'); closeModal(); }
+}
+
+// ═══════════════════════════════════════════════════════
+// CONSULTA SEFAZ
+// ═══════════════════════════════════════════════════════
+async function consultaSefaz() {
+  const chave = document.getElementById('q-chave').value.replace(/\D/g,'');
+  if (chave.length !== 44) { toast('Informe uma chave de acesso com 44 dígitos', 'error'); return; }
+  setLoading(true);
+  try {
+    const doc = await api('POST', '/api/v1/documents/consulta/chave', { chave_acesso: chave });
+    toast('Documento consultado e salvo com sucesso!', 'success');
+    await loadDocuments();
+    openDocDetail(doc.id);
+  } catch(e) { toast(e.message, 'error'); }
+  finally { setLoading(false); }
+}
+
+// ═══════════════════════════════════════════════════════
+// MANIFESTAÇÃO
+// ═══════════════════════════════════════════════════════
+let manifestDocId = null;
+function openManifestModal(docId) {
+  manifestDocId = docId;
+  document.getElementById('modal-tag').textContent   = 'SEFAZ';
+  document.getElementById('modal-title').textContent = 'Manifestação do Destinatário';
+  const opts = [
+    { v:'210200', l:'Confirmação da Operação',     d:'Confirma que a operação ocorreu.' },
+    { v:'210210', l:'Ciência da Operação',         d:'Declara ciência sem confirmar realização.' },
+    { v:'210220', l:'Desconhecimento da Operação', d:'Não participou da operação.' },
+    { v:'210240', l:'Operação não Realizada',      d:'A operação não foi efetivada.' },
+  ];
+  document.getElementById('modal-body').innerHTML = `
+    <p style="font-size:13px;color:var(--text-2);margin-bottom:16px;line-height:1.6">Selecione o tipo de manifestação. A comunicação é enviada diretamente à SEFAZ.</p>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${opts.map((o,i)=>`
+        <label style="display:flex;align-items:flex-start;gap:11px;padding:12px 14px;background:var(--bg-overlay);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;transition:border-color var(--transition)" onmouseover="this.style.borderColor='var(--accent-b)'" onmouseout="this.style.borderColor='var(--border)'">
+          <input type="radio" name="mf" value="${o.v}" ${i===0?'checked':''} style="accent-color:var(--accent);margin-top:2px;flex-shrink:0">
+          <div><div style="font-size:13px;font-weight:500;margin-bottom:2px">${o.l}</div><div style="font-size:12px;color:var(--text-3)">${o.d}</div></div>
+        </label>`).join('')}
+    </div>
+    <div id="just-wrap" style="display:none;margin-top:14px">
+      <div class="modal-form-label">Justificativa (obrigatória)</div>
+      <textarea class="modal-form-input" id="just-text" style="height:80px;resize:none;padding:10px" placeholder="Descreva o motivo..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="enviarManifestacao()">Confirmar e Enviar</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+    </div>`;
+  document.querySelectorAll('input[name="mf"]').forEach(r => r.addEventListener('change', e => {
+    document.getElementById('just-wrap').style.display = e.target.value === '210240' ? '' : 'none';
+  }));
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+async function enviarManifestacao() {
+  const tipo = document.querySelector('input[name="mf"]:checked')?.value;
+  const just = document.getElementById('just-text')?.value.trim();
+  if (!tipo || !manifestDocId) return;
+  setLoading(true);
+  try {
+    const r = await api('POST', '/api/v1/documents/manifestacao', { document_id: manifestDocId, tipo, justificativa: just||null });
+    toast(r.message, 'success');
+    closeModal();
+    loadDocuments(currentPage);
+  } catch(e) { toast(e.message,'error'); }
+  finally { setLoading(false); }
+}
+
+function openModal(type) {
+  if (type === 'manifestar') openManifestModal(null);
+  else if (type === 'monitor-create') openMonitorCreateModal();
+  else if (type === 'webhook-create') openWebhookCreateModal();
+  else if (type === 'alert-create') openAlertCreateModal();
+}
+
+// ═══════════════════════════════════════════════════════
+// MONITORS
+// ═══════════════════════════════════════════════════════
+async function loadMonitors() {
+  setLoading(true);
+  try {
+    const data = await api('GET', '/api/v1/monitors');
+    if (!data) return;
+    const grid  = document.getElementById('monitors-grid');
+    const empty = document.getElementById('monitors-empty');
+    document.getElementById('nav-badge-monitors').textContent = data.length;
+    if (!data.length) { grid.innerHTML=''; empty.style.display=''; return; }
+    empty.style.display = 'none';
+    grid.innerHTML = data.map(m => `
+      <div class="monitor-card">
+        <div class="monitor-card-header">
+          <div>
+            <div class="monitor-cnpj">${fmtCNPJ(m.cnpj)}</div>
+            <div class="monitor-desc">${m.description||m.razao_social||'Sem descrição'}</div>
+          </div>
+          <div style="display:flex;gap:5px">
+            <button class="icon-btn" title="Sincronizar agora" onclick="syncMonitor('${m.id}')"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 6A4 4 0 012 6M2 4V2M2 2h2M10 8v2M10 2v2M10 2h-2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <button class="icon-btn" title="Remover" onclick="deleteMonitor('${m.id}')" style="color:var(--red)"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 3h10M4 3V2h4v1M9 3v7a1 1 0 01-1 1H4a1 1 0 01-1-1V3" stroke-linecap="round"/></svg></button>
+          </div>
+        </div>
+        <div class="monitor-tags">
+          ${m.monitor_nfe?'<span class="monitor-tag">NF-e</span>':''}
+          ${m.monitor_cte?'<span class="monitor-tag">CT-e</span>':''}
+          ${m.monitor_nfse?'<span class="monitor-tag">NFS-e</span>':''}
+          ${m.as_emitente?'<span class="monitor-tag" style="background:var(--green-s);color:var(--green)">Emitente</span>':''}
+          ${m.as_destinatario?'<span class="monitor-tag" style="background:var(--green-s);color:var(--green)">Destinatário</span>':''}
+        </div>
+        <div class="monitor-footer">
+          <div class="monitor-sync">Sync: ${m.last_sync_at ? fmtDate(m.last_sync_at) : 'Nunca'}</div>
+          <div>${m.is_active ? '<span class="online-dot"></span><span style="font-size:11px;color:var(--green)">Ativo</span>' : '<span style="font-size:11px;color:var(--text-3)">Inativo</span>'}</div>
+        </div>
+        ${m.sync_error ? `<div style="margin-top:8px;padding:6px 10px;background:var(--red-s);border-radius:var(--radius-sm);font-size:11px;color:var(--red)">${m.sync_error}</div>` : ''}
+      </div>`).join('');
+  } catch(e) { toast(e.message,'error'); }
+  finally { setLoading(false); }
+}
+
+function openMonitorCreateModal() {
+  document.getElementById('modal-tag').textContent   = 'MONITORAMENTO';
+  document.getElementById('modal-title').textContent = 'Novo Monitor de CNPJ';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="modal-form-group"><div class="modal-form-label">CNPJ (somente números)</div><input class="modal-form-input" id="m-cnpj" placeholder="00000000000000" maxlength="14"></div>
+    <div class="modal-form-group"><div class="modal-form-label">Descrição (opcional)</div><input class="modal-form-input" id="m-desc" placeholder="Ex: Fornecedor principal"></div>
+    <div class="modal-form-group"><div class="modal-form-label">Tipos de documento</div>
+      <div class="check-row">
+        <label class="check-label"><input type="checkbox" id="m-nfe" checked> NF-e</label>
+        <label class="check-label"><input type="checkbox" id="m-cte" checked> CT-e</label>
+        <label class="check-label"><input type="checkbox" id="m-nfse"> NFS-e</label>
+      </div>
+    </div>
+    <div class="modal-form-group"><div class="modal-form-label">Papel na operação</div>
+      <div class="check-row">
+        <label class="check-label"><input type="checkbox" id="m-emit" checked> Emitente</label>
+        <label class="check-label"><input type="checkbox" id="m-dest" checked> Destinatário</label>
+        <label class="check-label"><input type="checkbox" id="m-transp"> Transportador</label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="createMonitor()">Ativar Monitor</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+async function createMonitor() {
+  const cnpj = document.getElementById('m-cnpj').value.trim();
+  if (!cnpj || cnpj.length !== 14) { toast('CNPJ deve ter 14 dígitos','error'); return; }
+  try {
+    await api('POST','/api/v1/monitors',{
+      cnpj, description: document.getElementById('m-desc').value||null,
+      monitor_nfe: document.getElementById('m-nfe').checked,
+      monitor_cte: document.getElementById('m-cte').checked,
+      monitor_nfse:document.getElementById('m-nfse').checked,
+      as_emitente: document.getElementById('m-emit').checked,
+      as_destinatario:document.getElementById('m-dest').checked,
+      as_transportador:document.getElementById('m-transp').checked,
+    });
+    toast('Monitor criado com sucesso!','success');
+    closeModal(); loadMonitors();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function syncMonitor(id) {
+  try { await api('POST',`/api/v1/monitors/${id}/sync`); toast('Sincronização enfileirada!','success'); }
+  catch(e) { toast(e.message,'error'); }
+}
+
+async function deleteMonitor(id) {
+  if (!confirm('Remover este monitor?')) return;
+  try { await api('DELETE',`/api/v1/monitors/${id}`); toast('Monitor removido','success'); loadMonitors(); }
+  catch(e) { toast(e.message,'error'); }
+}
+
+// ═══════════════════════════════════════════════════════
+// WEBHOOKS
+// ═══════════════════════════════════════════════════════
+const ALL_EVENTS = ['documento.novo','documento.cancelado','documento.denegado','manifestacao.enviada','alerta.disparado'];
+
+async function loadWebhooks() {
+  setLoading(true);
+  try {
+    const data = await api('GET','/api/v1/webhooks');
+    if (!data) return;
+    const list  = document.getElementById('webhooks-list');
+    const empty = document.getElementById('webhooks-empty');
+    if (!data.length) { list.innerHTML=''; empty.style.display=''; return; }
+    empty.style.display = 'none';
+    list.innerHTML = data.map(w => `
+      <div class="webhook-item">
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="webhook-name">${w.name}</div>
+            <span class="badge ${w.is_active?'auth':'cancel'}" style="font-size:10px"><span class="badge-dot"></span>${w.is_active?'Ativo':'Inativo'}</span>
+          </div>
+          <div class="webhook-url">${w.url}</div>
+          <div class="webhook-events">${(w.events||[]).map(e=>`<span class="webhook-event">${e}</span>`).join('')}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="btn btn-ghost" style="font-size:11px;height:30px;padding:0 10px" onclick="rotateSecret('${w.id}')">Rotacionar chave</button>
+          <button class="icon-btn" onclick="deleteWebhook('${w.id}')" style="color:var(--red)"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 3h10M4 3V2h4v1M9 3v7a1 1 0 01-1 1H4a1 1 0 01-1-1V3" stroke-linecap="round"/></svg></button>
+        </div>
+      </div>`).join('');
+  } catch(e) { toast(e.message,'error'); }
+  finally { setLoading(false); }
+}
+
+function openWebhookCreateModal() {
+  document.getElementById('modal-tag').textContent   = 'WEBHOOK';
+  document.getElementById('modal-title').textContent = 'Novo Endpoint Webhook';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="modal-form-group"><div class="modal-form-label">Nome</div><input class="modal-form-input" id="wh-name" placeholder="Meu sistema ERP"></div>
+    <div class="modal-form-group"><div class="modal-form-label">URL (HTTPS)</div><input class="modal-form-input" id="wh-url" placeholder="https://meusite.com/webhook"></div>
+    <div class="modal-form-group"><div class="modal-form-label">Eventos a receber</div>
+      <div class="check-row" style="flex-direction:column;gap:8px">
+        ${ALL_EVENTS.map(e=>`<label class="check-label"><input type="checkbox" class="wh-ev" value="${e}" checked> ${e}</label>`).join('')}
+      </div>
+    </div>
+    <div style="background:var(--accent-sub);border:1px solid var(--accent-b);border-radius:var(--radius);padding:12px;font-size:12px;color:var(--text-2);margin-bottom:4px">
+      A chave HMAC-SHA256 será gerada automaticamente e exibida após a criação.
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="createWebhook()">Criar Webhook</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+async function createWebhook() {
+  const name = document.getElementById('wh-name').value.trim();
+  const url  = document.getElementById('wh-url').value.trim();
+  const evs  = [...document.querySelectorAll('.wh-ev:checked')].map(e=>e.value);
+  if (!name || !url) { toast('Preencha nome e URL','error'); return; }
+  try {
+    await api('POST','/api/v1/webhooks',{ name, url, events: evs });
+    toast('Webhook criado! Acesse os detalhes para ver a chave de assinatura.','success');
+    closeModal(); loadWebhooks();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function rotateSecret(id) {
+  if (!confirm('Rotacionar a chave irá invalidar a assinatura atual. Continuar?')) return;
+  try {
+    const r = await api('POST',`/api/v1/webhooks/${id}/rotate-secret`);
+    document.getElementById('modal-tag').textContent   = 'CHAVE HMAC';
+    document.getElementById('modal-title').textContent = 'Nova chave de assinatura';
+    document.getElementById('modal-body').innerHTML = `
+      <p style="font-size:13px;color:var(--text-2);margin-bottom:14px">Guarde esta chave com segurança. Ela não será exibida novamente.</p>
+      <div class="chave-box" onclick="copyText('${r.secret}')" style="font-size:13px;letter-spacing:1px">
+        <span style="font-size:10px;color:var(--text-3);display:block;margin-bottom:4px">SECRET — clique para copiar</span>
+        ${r.secret}
+      </div>
+      <div class="modal-footer"><button class="btn btn-primary" onclick="closeModal()">Entendido</button></div>`;
+    document.getElementById('modal-overlay').classList.add('open');
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function deleteWebhook(id) {
+  if (!confirm('Remover este webhook?')) return;
+  try { await api('DELETE',`/api/v1/webhooks/${id}`); toast('Webhook removido','success'); loadWebhooks(); }
+  catch(e) { toast(e.message,'error'); }
+}
+
+// ═══════════════════════════════════════════════════════
+// ALERTS
+// ═══════════════════════════════════════════════════════
+async function loadAlerts() {
+  setLoading(true);
+  try {
+    const data = await api('GET','/api/v1/alerts');
+    if (!data) return;
+    document.getElementById('nav-badge-alerts').textContent = data.filter(a=>a.is_active).length;
+    const tbody = document.getElementById('alerts-tbody');
+    const empty = document.getElementById('alerts-empty');
+    if (!data.length) { tbody.innerHTML=''; empty.style.display=''; return; }
+    empty.style.display='none';
+    tbody.innerHTML = data.map(a=>`
+      <tr>
+        <td class="td-p">${a.name}</td>
+        <td style="color:var(--text-2)">${condLabel(a.condition)}${a.condition_value?` → ${a.condition_value}`:''}</td>
+        <td><span class="badge ${a.channel==='email'?'nfe':'cte'}"><span class="badge-dot"></span>${a.channel}</span></td>
+        <td style="font-family:var(--mono);font-size:11.5px;color:var(--text-2);max-width:160px;overflow:hidden;text-overflow:ellipsis">${a.destination}</td>
+        <td style="font-family:var(--mono);font-size:12px">${a.fire_count}</td>
+        <td><span class="badge ${a.is_active?'auth':'cancel'}"><span class="badge-dot"></span>${a.is_active?'Ativo':'Inativo'}</span></td>
+        <td><div class="row-actions" style="opacity:1">
+          <button class="icon-btn" onclick="toggleAlert('${a.id}',${!a.is_active})" title="${a.is_active?'Pausar':'Ativar'}">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5">${a.is_active?'<path d="M4 2v8M8 2v8" stroke-linecap="round"/>':'<path d="M3 2l7 4-7 4V2z" stroke-linejoin="round"/>'}</svg>
+          </button>
+          <button class="icon-btn" onclick="deleteAlert('${a.id}')" style="color:var(--red)"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 3h10M4 3V2h4v1M9 3v7a1 1 0 01-1 1H4a1 1 0 01-1-1V3" stroke-linecap="round"/></svg></button>
+        </div></td>
+      </tr>`).join('');
+  } catch(e) { toast(e.message,'error'); }
+  finally { setLoading(false); }
+}
+
+async function loadAlertsPanel() {
+  try {
+    const data = await api('GET','/api/v1/alerts');
+    if (!data) return;
+    const list = document.getElementById('alerts-list-dash');
+    if (!data.length) { list.innerHTML='<div style="padding:20px;text-align:center;font-size:12px;color:var(--text-3)">Nenhum alerta configurado</div>'; return; }
+    const icoMap = { novo_documento:'blue', documento_cancelado:'red', valor_acima:'amber', sem_manifestacao:'amber', cnpj_especifico:'blue' };
+    const ICONS = {
+      red:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1L1.5 13.5h13L8 1z"/><path d="M8 6v4M8 11.5v.5" stroke-linecap="round"/></svg>`,
+      amber:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v4M8 10.5v.5" stroke-linecap="round"/></svg>`,
+      blue:`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 7.5V12M8 5v.5" stroke-linecap="round"/></svg>`,
+    };
+    list.innerHTML = data.slice(0,5).map(a=>{
+      const ico = icoMap[a.condition]||'blue';
+      return `<div class="alert-row">
+        <div class="alert-ico ${ico}">${ICONS[ico]}</div>
+        <div class="alert-body"><div class="alert-title">${a.name}</div><div class="alert-desc">${condLabel(a.condition)} → ${a.destination}</div></div>
+        <div class="alert-time">${a.fire_count} disparos</div>
+      </div>`;
+    }).join('');
+  } catch {}
+}
+
+function openAlertCreateModal() {
+  document.getElementById('modal-tag').textContent   = 'ALERTA';
+  document.getElementById('modal-title').textContent = 'Novo Alerta';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="modal-form-group"><div class="modal-form-label">Nome do alerta</div><input class="modal-form-input" id="al-name" placeholder="Ex: NF-e cancelada acima de R$10k"></div>
+    <div class="modal-form-row">
+      <div class="modal-form-group"><div class="modal-form-label">Condição</div>
+        <select class="modal-form-input" id="al-cond" onchange="toggleCondValue()">
+          <option value="novo_documento">Nova NF-e/CT-e/NFS-e</option>
+          <option value="documento_cancelado">Documento cancelado</option>
+          <option value="valor_acima">Valor acima de</option>
+          <option value="cnpj_especifico">CNPJ específico emitiu</option>
+          <option value="sem_manifestacao">Sem manifestação</option>
+        </select>
+      </div>
+      <div class="modal-form-group" id="cond-val-wrap" style="display:none"><div class="modal-form-label">Valor (R$) / CNPJ</div><input class="modal-form-input" id="al-cond-val" placeholder="10000.00 ou CNPJ"></div>
+    </div>
+    <div class="modal-form-row">
+      <div class="modal-form-group"><div class="modal-form-label">Canal</div>
+        <select class="modal-form-input" id="al-channel">
+          <option value="email">E-mail</option>
+          <option value="webhook">Webhook</option>
+        </select>
+      </div>
+      <div class="modal-form-group"><div class="modal-form-label">Destino (e-mail ou URL)</div><input class="modal-form-input" id="al-dest" placeholder="seu@email.com"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="createAlert()">Criar Alerta</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function toggleCondValue() {
+  const v = document.getElementById('al-cond').value;
+  document.getElementById('cond-val-wrap').style.display = ['valor_acima','cnpj_especifico'].includes(v) ? '' : 'none';
+}
+
+async function createAlert() {
+  const name = document.getElementById('al-name').value.trim();
+  const cond = document.getElementById('al-cond').value;
+  const dest = document.getElementById('al-dest').value.trim();
+  const cv   = document.getElementById('al-cond-val')?.value.trim()||null;
+  if (!name || !dest) { toast('Preencha todos os campos','error'); return; }
+  try {
+    await api('POST','/api/v1/alerts',{ name, condition: cond, condition_value: cv, channel: document.getElementById('al-channel').value, destination: dest });
+    toast('Alerta criado!','success');
+    closeModal(); loadAlerts(); loadAlertsPanel();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function toggleAlert(id, active) {
+  try { await api('PATCH',`/api/v1/alerts/${id}`,{ is_active: active }); loadAlerts(); }
+  catch(e) { toast(e.message,'error'); }
+}
+
+async function deleteAlert(id) {
+  if (!confirm('Remover este alerta?')) return;
+  try { await api('DELETE',`/api/v1/alerts/${id}`); toast('Alerta removido','success'); loadAlerts(); }
+  catch(e) { toast(e.message,'error'); }
+}
+
+// ═══════════════════════════════════════════════════════
+// CHART (simulated — based on doc dates)
+// ═══════════════════════════════════════════════════════
+function renderChart() {
+  const months = ['J','F','M','A','M','J','J','A','S','O','N','D'];
+  const vals   = months.map(()=>Math.floor(Math.random()*90+10));
+  const max    = Math.max(...vals);
+  const now    = new Date().getMonth();
+  document.getElementById('chart-bars').innerHTML = months.map((m,i)=>`
+    <div class="bar-col">
+      <div class="bar-inner ${i===now?'hi':''}" style="height:${Math.round(vals[i]/max*80)}px" title="${m}: ${vals[i]}"></div>
+      <div class="bar-lbl">${m}</div>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// EXPORT
+// ═══════════════════════════════════════════════════════
+function exportDocs(type) {
+  if (!allDocs.length) { toast('Nenhum documento para exportar','error'); return; }
+  if (type === 'csv') {
+    const header = 'tipo,numero,serie,cnpj_emitente,razao_emitente,cnpj_destinatario,razao_destinatario,valor_total,data_emissao,status,chave_acesso';
+    const rows   = allDocs.map(r=>[r.doc_type,r.numero,r.serie,r.cnpj_emitente,r.razao_emitente||'',r.cnpj_destinatario||'',r.razao_destinatario||'',r.valor_total,r.data_emissao,r.status,r.chave_acesso].join(','));
+    const blob = new Blob([header+'\n'+rows.join('\n')], { type:'text/csv' });
+    dlBlob(blob,'fiscalspy-export.csv');
+    toast('CSV exportado!','success');
+  } else {
+    toast('Download de XMLs em massa disponível via API: GET /api/v1/documents/{id}/xml','info');
+  }
+}
+
+async function dlXml(id) {
+  try {
+    const resp = await fetch(`${API}/api/v1/documents/${id}/xml`, { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!resp.ok) throw new Error('XML não disponível');
+    const blob = await resp.blob();
+    dlBlob(blob,`nfe-${id}.xml`);
+    toast('XML baixado!','success');
+  } catch(e) { toast(e.message,'error'); }
+}
+
+function dlBlob(blob, name) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+}
+
+// ═══════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════
+function setDocTab(t, btn) {
+  document.querySelectorAll('.doc-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); currentDocType = t;
+}
+function setLoading(v) { document.getElementById('loading-line').classList.toggle('show',v); }
+function capitalize(s='') { return s.charAt(0).toUpperCase()+s.slice(1); }
+function statusClass(s) { return {autorizada:'auth',cancelada:'cancel',denegada:'denied'}[s]||'auth'; }
+function fmtVal(v) { return 'R$ '+parseFloat(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtValShort(v) { if(v>=1e6) return 'R$'+(v/1e6).toFixed(1)+'M'; if(v>=1e3) return 'R$'+(v/1e3).toFixed(0)+'k'; return fmtVal(v); }
+function fmtDate(d) { if(!d) return '—'; return new Date(d).toLocaleDateString('pt-BR'); }
+function fmtCNPJ(c='') { c=c.replace(/\D/g,''); if(c.length===14) return `${c.slice(0,2)}.${c.slice(2,5)}.${c.slice(5,8)}/${c.slice(8,12)}-${c.slice(12)}`; return c; }
+function manifDesc(v) { return {210200:'Confirmada',210210:'Ciência',210220:'Desconhecimento',210240:'Não realizada'}[v]||v; }
+function condLabel(c) { return {novo_documento:'Novo documento',documento_cancelado:'Doc. cancelado',valor_acima:'Valor acima de',cnpj_especifico:'CNPJ específico',sem_manifestacao:'Sem manifestação'}[c]||c; }
+function copyText(t) { navigator.clipboard.writeText(t).then(()=>toast('Copiado!','success')).catch(()=>{}); }
+
+function toast(msg, type='info') {
+  const wrap = document.getElementById('toast-wrap');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  const icon = {success:'✅',error:'❌',info:'ℹ️'}[type]||'ℹ️';
+  el.innerHTML = `<span>${icon}</span><span>${msg}</span>`;
+  wrap.appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transform='translateX(20px)'; el.style.transition='all .3s'; setTimeout(()=>el.remove(),300); },4000);
+}
+
+function toggleTheme() {
+  const html = document.documentElement;
+  const dark = html.getAttribute('data-theme') === 'dark';
+  html.setAttribute('data-theme', dark ? 'light' : 'dark');
+  const moonSvg = `<path d="M12 3a6 6 0 008 8 6 6 0 01-8-8z" fill="currentColor" stroke="none"/>`;
+  const sunSvg  = `<path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" stroke-linecap="round"/><circle cx="8" cy="8" r="3"/>`;
+  document.getElementById('theme-icon').innerHTML      = dark ? moonSvg : sunSvg;
+  document.getElementById('auth-theme-icon').innerHTML = dark ? moonSvg : sunSvg;
+}
+
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+function handleOverlay(e) { if(e.target===document.getElementById('modal-overlay')) closeModal(); }
+function toggleAvatarMenu() { document.getElementById('avatar-menu').classList.toggle('open'); }
+document.addEventListener('click', e => { if(!e.target.closest('.avatar')) document.getElementById('avatar-menu').classList.remove('open'); });
+
+// ═══════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════
+async function boot() {
+  const authEl = document.getElementById('auth-screen');
+  const appEl  = document.getElementById('app');
+  
+  if (!accessToken) {
+    authEl.style.display = 'flex';
+    return;
+  }
+  
+  try {
+    const me = await fetch('/api/v1/auth/me', {
+      headers: { 'Authorization': 'Bearer ' + accessToken }
+    });
+    
+    if (me.ok) {
+      currentUser = await me.json();
+      localStorage.setItem('fs_user', JSON.stringify(currentUser));
+      
+      // Update UI
+      const av = document.getElementById('user-av');
+      av.textContent = initials(currentUser.full_name);
+      document.getElementById('menu-user-name').textContent  = currentUser.full_name;
+      document.getElementById('menu-user-email').textContent = currentUser.email;
+      
+      // Show app
+      authEl.style.display = 'none';
+      appEl.style.display  = 'flex';
+      loadDashboard();
+    } else {
+      // Try refresh
+      const ok = await doRefresh();
+      if (ok) { await boot(); return; }
+      localStorage.clear();
+      authEl.style.display = 'flex';
+    }
+  } catch(e) {
+    console.error('Boot error:', e);
+    authEl.style.display = 'flex';
+  }
+}
+
+boot();
+
+// ═══════════════════════════════════════════════════════
+// CONFIGURAÇÕES SEFAZ
+// ═══════════════════════════════════════════════════════
+let selectedModo = null;
+
+async function loadConfiguracoes() {
+  // Load current config from API
+  try {
+    const data = await api('GET', '/api/v1/sefaz/config');
+    if (data) updateModoAtual(data.auth_mode, data);
+  } catch {}
+}
+
+function updateModoAtual(mode, data) {
+  const pill  = document.getElementById('modo-pill');
+  const label = document.getElementById('modo-label');
+  const desc  = document.getElementById('modo-desc');
+  const configs = {
+    none:        { color:'amber',  icon:'⚠️', label:'Sem autenticação — somente consulta por chave', desc:'Configure abaixo para habilitar busca automática.' },
+    codigo:      { color:'blue',   icon:'🔑', label:'Código de Acesso e-CAC ativo',                  desc:`CNPJ: ${data?.cnpj||'—'} · Sincroniza automaticamente` },
+    certificado: { color:'purple', icon:'🏆', label:'Certificado Digital A1 ativo',                  desc:`Certificado configurado · Validade: ${data?.cert_expires||'—'}` },
+  };
+  const c = configs[mode] || configs.none;
+  pill.style.background = `var(--${c.color}-s)`;
+  pill.style.borderColor = `rgba(var(--${c.color}-rgb),.2)`;
+  pill.style.color = `var(--${c.color})`;
+  label.textContent = c.icon + ' ' + c.label;
+  desc.textContent  = c.desc;
+}
+
+function selectModo(modo) {
+  selectedModo = modo;
+  // Highlight selected card
+  ['publico','codigo','cert'].forEach(m => {
+    const el = document.getElementById('card-' + m);
+    if (el) el.style.borderColor = m === (modo==='certificado'?'cert':modo) ? 'var(--accent)' : 'var(--border)';
+  });
+  const area = document.getElementById('config-form-area');
+  if (modo === 'publico') {
+    area.innerHTML = `
+      <div class="card">
+        <div class="card-header"><div class="card-title">Acesso Público — Sem configuração necessária</div></div>
+        <div style="padding:24px">
+          <div style="background:var(--green-s);border:1px solid rgba(16,185,129,.2);border-radius:var(--radius);padding:16px;margin-bottom:16px">
+            <div style="font-size:13.5px;font-weight:600;color:var(--green);margin-bottom:6px">✅ Nenhuma configuração necessária</div>
+            <div style="font-size:13px;color:var(--text-2);line-height:1.6">
+              O FiscalSpy já consegue consultar qualquer NF-e pela chave de acesso sem precisar de certificado.
+              Use a busca no painel principal e cole a chave de acesso (44 dígitos).
+            </div>
+          </div>
+          <div style="font-size:13px;color:var(--text-2);line-height:1.8">
+            <strong>Como funciona:</strong><br>
+            1. Vá em <strong>Painel → campo "Consultar SEFAZ"</strong><br>
+            2. Cole a chave de acesso da NF-e (44 dígitos)<br>
+            3. Clique em <strong>SEFAZ</strong> — o documento é salvo automaticamente
+          </div>
+          <button class="btn btn-primary" style="margin-top:16px" onclick="toast('Modo público já está ativo!','success')">Confirmar modo público</button>
+        </div>
+      </div>`;
+  } else if (modo === 'codigo') {
+    area.innerHTML = `
+      <div class="card">
+        <div class="card-header"><div class="card-title">Configurar Código de Acesso e-CAC</div></div>
+        <div style="padding:24px">
+          <div style="background:var(--accent-sub);border:1px solid var(--accent-b);border-radius:var(--radius);padding:14px;margin-bottom:20px;font-size:12.5px;line-height:1.7;color:var(--text-2)">
+            <strong style="color:var(--text)">Como obter o código de acesso:</strong><br>
+            1. Acesse <a href="https://cav.receita.fazenda.gov.br" target="_blank" style="color:var(--accent)">cav.receita.fazenda.gov.br</a><br>
+            2. Entre com seu <strong>CPF + senha da Receita Federal</strong> (ou Gov.br)<br>
+            3. Clique em <strong>"Código de Acesso"</strong> no menu<br>
+            4. Clique em <strong>"Gerar Código"</strong> — válido por 2 anos<br>
+            5. Copie o código de 8 dígitos e cole abaixo
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+            <div class="modal-form-group">
+              <div class="modal-form-label">CNPJ (somente números)</div>
+              <input class="modal-form-input" id="cfg-cnpj" placeholder="00000000000000" maxlength="14" autocomplete="off">
+            </div>
+            <div class="modal-form-group">
+              <div class="modal-form-label">Código de Acesso e-CAC</div>
+              <input class="modal-form-input" id="cfg-codigo" placeholder="00000000" maxlength="8" autocomplete="off">
+            </div>
+          </div>
+          <div class="modal-form-group">
+            <div class="modal-form-label">Ambiente</div>
+            <select class="modal-form-input" id="cfg-amb-codigo">
+              <option value="producao">Produção (dados reais)</option>
+              <option value="homologacao">Homologação (testes)</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:4px">
+            <button class="btn btn-primary" onclick="salvarCodigoAcesso()">Salvar e sincronizar</button>
+            <button class="btn btn-ghost" onclick="testarCodigoAcesso()">Testar conexão</button>
+          </div>
+        </div>
+      </div>`;
+  } else if (modo === 'certificado') {
+    area.innerHTML = `
+      <div class="card">
+        <div class="card-header"><div class="card-title">Configurar Certificado Digital A1</div></div>
+        <div style="padding:24px">
+          <div style="background:var(--purple-s);border:1px solid rgba(139,92,246,.2);border-radius:var(--radius);padding:14px;margin-bottom:20px;font-size:12.5px;line-height:1.7;color:var(--text-2)">
+            <strong style="color:var(--text)">Certificado e-CNPJ A1 (.pfx)</strong><br>
+            O arquivo A1 é exportado da sua conta na autoridade certificadora (Serasa, Certisign, Valid, etc.).<br>
+            O certificado é armazenado de forma segura e criptografada.
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+            <div class="modal-form-group" style="grid-column:1/-1">
+              <div class="modal-form-label">Arquivo do Certificado (.pfx)</div>
+              <div style="border:2px dashed var(--border);border-radius:var(--radius);padding:24px;text-align:center;cursor:pointer;transition:border-color .2s"
+                   id="cert-dropzone"
+                   ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+                   ondragleave="this.style.borderColor='var(--border)'"
+                   ondrop="handleCertDrop(event)"
+                   onclick="document.getElementById('cert-file-input').click()">
+                <input type="file" id="cert-file-input" accept=".pfx,.p12" style="display:none" onchange="handleCertFile(this)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:32px;height:32px;margin:0 auto 8px;color:var(--text-3)"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <div id="cert-file-name" style="font-size:13px;color:var(--text-2)">Arraste o .pfx aqui ou clique para selecionar</div>
+              </div>
+            </div>
+            <div class="modal-form-group">
+              <div class="modal-form-label">Senha do Certificado</div>
+              <input class="modal-form-input" id="cfg-cert-pass" type="password" placeholder="Senha do arquivo .pfx" autocomplete="new-password">
+            </div>
+            <div class="modal-form-group">
+              <div class="modal-form-label">Ambiente</div>
+              <select class="modal-form-input" id="cfg-amb-cert">
+                <option value="producao">Produção (dados reais)</option>
+                <option value="homologacao">Homologação (testes)</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px">
+            <button class="btn btn-primary" onclick="salvarCertificado()">Salvar Certificado</button>
+            <button class="btn btn-ghost" onclick="testarCertificado()">Testar conexão</button>
+          </div>
+        </div>
+      </div>`;
+  }
+}
+
+let certFileBase64 = null;
+
+function handleCertFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('cert-file-name').textContent = '📎 ' + file.name;
+  const reader = new FileReader();
+  reader.onload = e => {
+    certFileBase64 = e.target.result.split(',')[1];
+  };
+  reader.readAsDataURL(file);
+}
+
+function handleCertDrop(event) {
+  event.preventDefault();
+  document.getElementById('cert-dropzone').style.borderColor = 'var(--border)';
+  const file = event.dataTransfer.files[0];
+  if (file) {
+    document.getElementById('cert-file-input').files = event.dataTransfer.files;
+    handleCertFile(document.getElementById('cert-file-input'));
+  }
+}
+
+async function salvarCodigoAcesso() {
+  const cnpj   = document.getElementById('cfg-cnpj').value.replace(/\D/g,'');
+  const codigo = document.getElementById('cfg-codigo').value.trim();
+  const amb    = document.getElementById('cfg-amb-codigo').value;
+  if (cnpj.length !== 14) { toast('CNPJ deve ter 14 dígitos','error'); return; }
+  if (!codigo)             { toast('Informe o código de acesso','error'); return; }
+  try {
+    await api('POST','/api/v1/sefaz/config', { auth_mode:'codigo', cnpj, codigo_acesso:codigo, ambiente:amb });
+    toast('Configuração salva! Iniciando sincronização...','success');
+    updateModoAtual('codigo', { cnpj });
+    // Trigger sync for all monitors of this CNPJ
+    await api('POST','/api/v1/sefaz/sync', { cnpj, codigo_acesso:codigo, ambiente:amb });
+    toast('Sincronização iniciada! Os documentos aparecerão em breve.','success');
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function testarCodigoAcesso() {
+  const cnpj   = document.getElementById('cfg-cnpj').value.replace(/\D/g,'');
+  const codigo = document.getElementById('cfg-codigo').value.trim();
+  const amb    = document.getElementById('cfg-amb-codigo').value;
+  if (!cnpj || !codigo) { toast('Preencha CNPJ e código','error'); return; }
+  try {
+    const r = await api('POST','/api/v1/sefaz/testar', { auth_mode:'codigo', cnpj, codigo_acesso:codigo, ambiente:amb });
+    if (r.success) toast('✅ Conexão com SEFAZ OK! ' + (r.message||''), 'success');
+    else toast('❌ ' + (r.error||'Falha na conexão'), 'error');
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function salvarCertificado() {
+  if (!certFileBase64) { toast('Selecione o arquivo .pfx','error'); return; }
+  const pass = document.getElementById('cfg-cert-pass').value;
+  const amb  = document.getElementById('cfg-amb-cert').value;
+  if (!pass) { toast('Informe a senha do certificado','error'); return; }
+  try {
+    await api('POST','/api/v1/sefaz/config', { auth_mode:'certificado', cert_pfx_b64: certFileBase64, cert_password: pass, ambiente: amb });
+    toast('Certificado salvo com sucesso!','success');
+    updateModoAtual('certificado', {});
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function testarCertificado() {
+  if (!certFileBase64) { toast('Selecione o arquivo .pfx','error'); return; }
+  const pass = document.getElementById('cfg-cert-pass').value;
+  const amb  = document.getElementById('cfg-amb-cert').value;
+  try {
+    const r = await api('POST','/api/v1/sefaz/testar', { auth_mode:'certificado', cert_pfx_b64: certFileBase64, cert_password: pass, ambiente: amb });
+    if (r.success) toast('✅ Certificado válido! ' + (r.message||''), 'success');
+    else toast('❌ ' + (r.error||'Certificado inválido'), 'error');
+  } catch(e) { toast(e.message,'error'); }
+}
+
+</script>
+</body>
+</html>
+<!-- injected before </script> -->
