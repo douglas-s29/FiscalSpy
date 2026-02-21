@@ -58,7 +58,7 @@ async def get_documents(
     data_fim: str | None = Query(None, description="Data final (YYYY-MM-DD)"),
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=100),
-    current_user: User = Depends(get_current_user),
+    _: User = Depends(get_current_user),
     org: Organization = Depends(get_current_org),
     db: AsyncSession = Depends(get_db),
 ):
