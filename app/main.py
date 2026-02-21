@@ -130,7 +130,9 @@ async def startup():
         log.warning("⏳ Aguardando banco... %s", stderr.decode()[:200])
         await asyncio.sleep(2)
     else:
-        log.error("❌ Falha ao aplicar migrations: %s", stderr.decode())
+        err = stderr.decode()
+        log.error("❌ Falha ao aplicar migrations: %s", err)
+        raise RuntimeError(f"Falha ao aplicar migrations na inicialização: {err}")
 
 @app.on_event("shutdown")
 async def shutdown():

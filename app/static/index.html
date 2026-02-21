@@ -356,6 +356,40 @@ tbody tr:hover .row-actions { opacity:1; }
 .check-label { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text); cursor:pointer; }
 .check-label input { accent-color:var(--accent); width:14px; height:14px; }
 
+/* ─── RESPONSIVE ─── */
+@media (max-width: 1200px) {
+  .search-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .two-col { grid-template-columns: 1fr; }
+  .right-col { order: 2; }
+}
+
+@media (max-width: 980px) {
+  .layout { flex-direction: column; }
+  .sidebar {
+    position: static;
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-nav { flex-direction: row; flex-wrap: wrap; gap: 6px; }
+  .sidebar-footer { display: none; }
+  .main { margin-left: 0; width: 100%; }
+  .topbar { padding: 12px; height: auto; flex-wrap: wrap; gap: 8px; }
+  .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .modal-form-row, .form-row { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 720px) {
+  .search-fields { grid-template-columns: 1fr; }
+  .kpi-grid { grid-template-columns: 1fr; }
+  .page { padding: 12px; }
+  .page-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .topbar-actions { width: 100%; justify-content: space-between; }
+  .btn { width: 100%; justify-content: center; }
+  .card-header { padding: 12px; }
+  th, td { padding: 9px 10px; }
+}
+
 /* ─── PAGES (show/hide) ─── */
 .page-view { display:none; }
 .page-view.active { display:block; }
@@ -518,11 +552,14 @@ tbody tr:hover .row-actions { opacity:1; }
               <option value="denegada">Denegada</option>
             </select>
           </div>
+          <div class="field"><label>Emissão de</label><input id="q-data-inicio" type="date"></div>
+          <div class="field"><label>até</label><input id="q-data-fim" type="date"></div>
           <div class="field"><label>Consultar SEFAZ</label>
             <input id="q-chave" autocomplete="off" type="text" placeholder="Chave de acesso (44 dígitos)">
           </div>
           <div style="display:flex;gap:8px;align-self:flex-end">
-            <button class="btn btn-ghost" style="height:36px" onclick="loadDocuments()">Buscar</button>
+            <button class="btn btn-ghost" style="height:36px" onclick="buscarDocumentos()">Buscar</button>
+            <button class="btn btn-ghost" style="height:36px" onclick="clearDashboardFilters()">Limpar</button>
             <button class="btn btn-primary" style="height:36px" onclick="consultaSefaz()">SEFAZ</button>
           </div>
         </div>
@@ -976,17 +1013,59 @@ async function loadDashboard() {
 // ═══════════════════════════════════════════════════════
 // DOCUMENTS
 // ═══════════════════════════════════════════════════════
+function clearDashboardFilters() {
+  const ids = ['q-cnpj','q-uf','q-status','q-data-inicio','q-data-fim'];
+  ids.forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (el.tagName === 'SELECT') el.value = '';
+    else el.value = '';
+  });
+  currentDocType = '';
+  document.querySelectorAll('.doc-tab').forEach((tab, idx) => tab.classList.toggle('active', idx === 0));
+  loadDocuments(1);
+}
+
+async function buscarDocumentos() {
+  const cnpj = document.getElementById('q-cnpj')?.value.replace(/\D/g,'') || '';
+  const data_inicio = document.getElementById('q-data-inicio')?.value || null;
+  const data_fim = document.getElementById('q-data-fim')?.value || null;
+
+  if (cnpj.length === 14) {
+    setLoading(true);
+    try {
+      await api('POST', '/api/v1/documents/consulta/cnpj', {
+        cnpj,
+        doc_type: currentDocType || null,
+        data_inicio,
+        data_fim,
+      });
+      toast('Sincronização por CNPJ concluída. Atualizando listagem...', 'success');
+    } catch (e) {
+      toast(e.message || 'Falha ao sincronizar CNPJ na SEFAZ', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  await loadDocuments(1);
+}
+
 async function loadDocuments(page=1) {
   setLoading(true);
   currentPage = page;
   const cnpj   = document.getElementById('q-cnpj')?.value.replace(/\D/g,'') || '';
   const uf     = document.getElementById('q-uf')?.value || '';
   const status = document.getElementById('q-status')?.value || '';
+  const dataInicio = document.getElementById('q-data-inicio')?.value || '';
+  const dataFim = document.getElementById('q-data-fim')?.value || '';
   let url = `/api/v1/documents?page=${page}&page_size=25`;
   if (currentDocType) url += `&doc_type=${currentDocType}`;
   if (cnpj)   url += `&cnpj=${cnpj}`;
   if (uf)     url += `&uf=${uf}`;
   if (status) url += `&status=${status}`;
+  if (dataInicio) url += `&data_inicio=${dataInicio}`;
+  if (dataFim) url += `&data_fim=${dataFim}`;
   try {
     const data = await api('GET', url);
     if (!data) return;
@@ -1602,7 +1681,8 @@ async function boot() {
       document.getElementById('menu-user-name').textContent  = currentUser.full_name;
       document.getElementById('menu-user-email').textContent = currentUser.email;
       
-      // Show app
+      // Load org/user context and show app
+      await loadUserAndOrg();
       authEl.style.display = 'none';
       appEl.style.display  = 'flex';
       loadDashboard();
