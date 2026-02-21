@@ -828,7 +828,12 @@ async function api(method, path, body, retry=true) {
     headers: { 'Content-Type': 'application/json', ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}) },
   };
   if (body) opts.body = JSON.stringify(body);
-  const resp = await fetch(API + path, opts);
+  let resp;
+  try {
+    resp = await fetch(API + path, opts);
+  } catch(e) {
+    throw new Error('Erro de conexão com o servidor: ' + e.message);
+  }
 
   if (resp.status === 401 && retry && refreshToken) {
     const ok = await doRefresh();
@@ -1005,8 +1010,11 @@ async function loadDashboard() {
   setLoading(true);
   try {
     await loadDocuments();
-    await loadAlertsPanel();
-    renderChart();
+    try { await loadAlertsPanel(); } catch(e) { console.warn('loadAlertsPanel:', e); }
+    try { renderChart(); } catch(e) { console.warn('renderChart:', e); }
+  } catch(e) {
+    console.error('loadDashboard error:', e);
+    toast('Erro ao carregar painel: ' + e.message, 'error');
   } finally { setLoading(false); }
 }
 
