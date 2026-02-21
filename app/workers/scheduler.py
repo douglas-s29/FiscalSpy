@@ -71,11 +71,15 @@ def main():
     scheduler.start()
     log.info("Scheduler started")
 
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     try:
-        asyncio.get_event_loop().run_forever()
+        loop.run_forever()
     except (KeyboardInterrupt, SystemExit):
         scheduler.shutdown()
         log.info("Scheduler stopped")
+    finally:
+        loop.close()
 
 
 if __name__ == "__main__":
