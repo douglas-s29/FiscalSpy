@@ -20,6 +20,7 @@ from app.api.v1.routes.resources import (
     webhooks_router,
     alerts_router,
 )
+from app.api.v1.routes.sefaz_config import router as sefaz_config_router
 from app.db.session import engine
 
 # ── Sentry ───────────────────────────────────────────
@@ -56,11 +57,12 @@ app.add_middleware(
 
 # ── API Routers ───────────────────────────────────────
 PREFIX = "/api/v1"
-app.include_router(auth_router,      prefix=PREFIX)
-app.include_router(docs_router,      prefix=PREFIX)
-app.include_router(monitors_router,  prefix=PREFIX)
-app.include_router(webhooks_router,  prefix=PREFIX)
-app.include_router(alerts_router,    prefix=PREFIX)
+app.include_router(auth_router,         prefix=PREFIX)
+app.include_router(docs_router,         prefix=PREFIX)
+app.include_router(monitors_router,     prefix=PREFIX)
+app.include_router(webhooks_router,     prefix=PREFIX)
+app.include_router(alerts_router,       prefix=PREFIX)
+app.include_router(sefaz_config_router, prefix=PREFIX)
 
 # ── Health ────────────────────────────────────────────
 @app.get("/health", tags=["System"])
@@ -113,19 +115,22 @@ async def unhandled_exception(request: Request, exc: Exception):
 # ── Startup / shutdown ───────────────────────────────
 @app.on_event("startup")
 async def startup():
+    import asyncio
     log.info("🚀 FiscalSpy API starting — env=%s", settings.app_env)
-    # Roda migrations sempre — garante tabelas criadas em qualquer ambiente
-    import subprocess, time
-    # Aguarda o banco estar pronto
     for _ in range(10):
-        result = subprocess.run(["alembic", "upgrade", "head"], capture_output=True, text=True)
-        if result.returncode == 0:
+        proc = await asyncio.create_subprocess_exec(
+            "alembic", "upgrade", "head",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        _, stderr = await proc.communicate()
+        if proc.returncode == 0:
             log.info("✅ Migrations aplicadas com sucesso")
             break
-        log.warning("⏳ Aguardando banco... %s", result.stderr[:200])
-        time.sleep(2)
+        log.warning("⏳ Aguardando banco... %s", stderr.decode()[:200])
+        await asyncio.sleep(2)
     else:
-        log.error("❌ Falha ao aplicar migrations: %s", result.stderr)
+        log.error("❌ Falha ao aplicar migrations: %s", stderr.decode())
 
 @app.on_event("shutdown")
 async def shutdown():

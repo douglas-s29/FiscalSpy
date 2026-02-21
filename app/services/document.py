@@ -4,9 +4,9 @@ FiscalSpy — Document Service
 from __future__ import annotations
 import logging, uuid
 from decimal import Decimal
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.models import Alert, FiscalDocument
+from app.models.models import Alert, FiscalDocument, Organization
 from app.schemas.schemas import DocumentFilter
 from app.services.sefaz import SefazDocument
 from app.services.webhook import dispatch_event
@@ -19,6 +19,22 @@ EVENTOS = {
     "denegado":  "documento.denegado",
 }
 
+async def check_docs_limit(db: AsyncSession, org_id: uuid.UUID) -> None:
+    """Raise if org has reached their plan's document limit."""
+    org_result = await db.execute(select(Organization).where(Organization.id == org_id))
+    org = org_result.scalar_one_or_none()
+    if not org:
+        log.warning("check_docs_limit: organization %s not found", org_id)
+        return
+
+    count_result = await db.execute(
+        select(func.count()).select_from(FiscalDocument).where(FiscalDocument.organization_id == org_id)
+    )
+    current_count = count_result.scalar_one()
+
+    if current_count >= org.docs_limit:
+        raise ValueError(f"Limite de documentos atingido ({org.docs_limit}). Faça upgrade do plano.")
+
 async def upsert_document(db: AsyncSession, org_id: uuid.UUID, sefaz_doc: SefazDocument) -> tuple[FiscalDocument, bool]:
     result = await db.execute(select(FiscalDocument).where(
         FiscalDocument.organization_id == org_id,
@@ -28,6 +44,7 @@ async def upsert_document(db: AsyncSession, org_id: uuid.UUID, sefaz_doc: SefazD
     created = existing is None
 
     if created:
+        await check_docs_limit(db, org_id)
         doc = FiscalDocument(
             organization_id=org_id, doc_type=sefaz_doc.doc_type,
             chave_acesso=sefaz_doc.chave_acesso, numero=sefaz_doc.numero,

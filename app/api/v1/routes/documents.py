@@ -21,7 +21,7 @@ from app.schemas.schemas import (
     ManifestacaoRequest,
     MessageResponse,
 )
-from app.services.document import list_documents, upsert_document
+from app.services.document import check_docs_limit, list_documents, upsert_document
 from app.services.sefaz import SefazService
 from app.services.webhook import dispatch_event
 
@@ -108,7 +108,10 @@ async def consulta_por_chave(
     if not result.success or not result.documents:
         raise HTTPException(status_code=422, detail=result.error or "Documento não encontrado na SEFAZ")
 
-    doc, _ = await upsert_document(db, org.id, result.documents[0])
+    try:
+        doc, _ = await upsert_document(db, org.id, result.documents[0])
+    except ValueError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
     await db.commit()
     return doc
 
@@ -129,7 +132,10 @@ async def consulta_por_cnpj(
 
     saved = []
     for sefaz_doc in result.documents:
-        doc, _ = await upsert_document(db, org.id, sefaz_doc)
+        try:
+            doc, _ = await upsert_document(db, org.id, sefaz_doc)
+        except ValueError as exc:
+            raise HTTPException(status_code=403, detail=str(exc))
         saved.append(doc)
 
     await db.commit()

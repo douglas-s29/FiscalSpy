@@ -134,7 +134,19 @@ async def sync_monitor(
     m = result.scalar_one_or_none()
     if not m:
         raise HTTPException(status_code=404, detail="Monitor não encontrado")
-    # In production, enqueue: await arq_pool.enqueue_job("sync_cnpj", str(m.id))
+
+    try:
+        from arq import create_pool
+        from app.workers.main import redis_settings_from_url
+        from app.core.config import settings
+        pool = await create_pool(redis_settings_from_url(settings.redis_url))
+        await pool.enqueue_job("sync_cnpj", str(m.id))
+        await pool.aclose()
+    except Exception as exc:
+        import logging as _log
+        _log.getLogger(__name__).error("Erro ao enfileirar sincronização para monitor %s: %s", monitor_id, exc)
+        raise HTTPException(status_code=503, detail="Erro ao enfileirar sincronização. Tente novamente mais tarde.")
+
     return MessageResponse(message=f"Sincronização do CNPJ {m.cnpj} enfileirada")
 
 
