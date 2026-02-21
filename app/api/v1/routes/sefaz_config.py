@@ -210,7 +210,16 @@ async def sync_cnpj(
     )
 
     try:
-        result = await svc.distribuicao_dfe(cnpj=cnpj, ult_nsu="000000000000000")
+        if svc.auth_mode == "codigo_acesso":
+            if not codigo:
+                raise HTTPException(400, "Código de acesso é obrigatório para este modo de autenticação")
+            result = await svc.distribuicao_dfe_codigo_acesso(
+                cnpj=cnpj,
+                codigo_acesso=codigo,
+                ult_nsu="000000000000000",
+            )
+        else:
+            result = await svc.distribuicao_dfe(cnpj=cnpj, ult_nsu="000000000000000")
         created = 0
         if result.success:
             for doc in result.documents:
@@ -235,6 +244,8 @@ async def sync_cnpj(
             "auth_mode":    svc.auth_mode,
             "error":        result.error,
         }
+    except HTTPException:
+        raise
     except Exception as exc:
         log.exception("Erro sync CNPJ %s", cnpj)
         return {"success": False, "error": str(exc)}
