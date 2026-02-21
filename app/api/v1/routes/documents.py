@@ -2,6 +2,8 @@
 FiscalSpy — API Routes: Documents
 """
 
+from datetime import datetime, time, timezone
+import base64
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -22,7 +24,7 @@ from app.schemas.schemas import (
     MessageResponse,
 )
 from app.services.document import check_docs_limit, list_documents, upsert_document
-from app.services.sefaz import SefazService
+from app.services.sefaz import NfseService, SefazService
 from app.services.webhook import dispatch_event
 
 
@@ -35,19 +37,36 @@ async def get_documents(
     status:      str | None = Query(None),
     uf:          str | None = Query(None),
     cnpj:        str | None = Query(None),
+    data_inicio: str | None = Query(None, description="Data inicial (YYYY-MM-DD)"),
+    data_fim:    str | None = Query(None, description="Data final (YYYY-MM-DD)"),
     page:        int        = Query(1, ge=1),
     page_size:   int        = Query(25, ge=1, le=100),
     current_user: User         = Depends(get_current_user),
     org:          Organization = Depends(get_current_org),
     db:           AsyncSession = Depends(get_db),
 ):
+    parsed_inicio = None
+    parsed_fim = None
+    try:
+        if data_inicio:
+            parsed_inicio = datetime.fromisoformat(data_inicio).replace(hour=0, minute=0, second=0, microsecond=0)
+            if parsed_inicio.tzinfo is None:
+                parsed_inicio = parsed_inicio.replace(tzinfo=timezone.utc)
+        if data_fim:
+            fim_base = datetime.fromisoformat(data_fim)
+            parsed_fim = datetime.combine(fim_base.date(), time.max).replace(tzinfo=fim_base.tzinfo or timezone.utc)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Datas inválidas. Use o formato YYYY-MM-DD")
+
     filters = DocumentFilter(
-        doc_type  = doc_type,
-        status    = status,
-        uf        = uf,
-        cnpj      = cnpj,
-        page      = page,
-        page_size = page_size,
+        doc_type    = doc_type,
+        status      = status,
+        uf          = uf,
+        cnpj        = cnpj,
+        data_inicio = parsed_inicio,
+        data_fim    = parsed_fim,
+        page        = page,
+        page_size   = page_size,
     )
     total, items = await list_documents(db, org.id, filters)
     return DocumentListOut(total=total, page=page, page_size=page_size, items=items)
@@ -122,16 +141,55 @@ async def consulta_por_cnpj(
     org:         Organization = Depends(get_current_org),
     db:          AsyncSession = Depends(get_db),
 ):
-    """Consulta documentos fiscais pelo CNPJ via distribuição DFe."""
-    svc    = SefazService()
-    result = await svc.distribuicao_dfe(body.cnpj)
+    """Consulta documentos fiscais pelo CNPJ conforme modo configurado na organização."""
+    cnpj = body.cnpj.replace(".", "").replace("/", "").replace("-", "")
+    extra = org.extra or {}
+    cert_bytes = base64.b64decode(org.cert_pfx_encrypted) if org.cert_pfx_encrypted else None
+
+    svc = SefazService(
+        ambiente=extra.get("sefaz_ambiente"),
+        cert_pfx_bytes=cert_bytes,
+        cert_password=org.cert_password_hash if cert_bytes else None,
+        cnpj=cnpj,
+        codigo_acesso=extra.get("sefaz_codigo_acesso"),
+    )
+
+    if svc.auth_mode == "codigo_acesso":
+        result = await svc.distribuicao_dfe_codigo_acesso(cnpj=cnpj, codigo_acesso=extra.get("sefaz_codigo_acesso", ""))
+    else:
+        result = await svc.distribuicao_dfe(cnpj=cnpj)
     await svc.close()
 
     if not result.success:
         raise HTTPException(status_code=422, detail=result.error or "Erro na consulta SEFAZ")
 
+    docs = result.documents
+    if body.doc_type in {"nfe", "cte"}:
+        docs = [d for d in docs if d.doc_type == body.doc_type]
+
+    range_start = body.data_inicio.replace(tzinfo=body.data_inicio.tzinfo or timezone.utc) if body.data_inicio else None
+    range_end = body.data_fim.replace(tzinfo=body.data_fim.tzinfo or timezone.utc) if body.data_fim else None
+
+    def in_range(doc_dt: datetime) -> bool:
+        dt = doc_dt if doc_dt.tzinfo else doc_dt.replace(tzinfo=timezone.utc)
+        if range_start and dt < range_start:
+            return False
+        if range_end and dt > range_end:
+            return False
+        return True
+
+    docs = [d for d in docs if in_range(d.data_emissao)]
+
+    # NFS-e opcional: inclui quando solicitado explicitamente ou sem filtro de tipo.
+    if body.doc_type in {None, "nfse"}:
+        nfse_service = NfseService(cert_pfx_bytes=cert_bytes, cert_password=org.cert_password_hash or "")
+        nfse_result = await nfse_service.consulta_nfse_cnpj(cnpj)
+        if nfse_result.success:
+            nfse_docs = [d for d in nfse_result.documents if in_range(d.data_emissao)]
+            docs.extend(nfse_docs)
+
     saved = []
-    for sefaz_doc in result.documents:
+    for sefaz_doc in docs:
         try:
             doc, _ = await upsert_document(db, org.id, sefaz_doc)
         except ValueError as exc:
