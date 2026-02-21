@@ -96,8 +96,8 @@ if STATIC_DIR.exists():
 @app.get("/", include_in_schema=False)
 @app.get("/{full_path:path}", include_in_schema=False)
 async def serve_spa(request: Request, full_path: str = ""):
-    # Don't intercept API or health routes
-    if full_path.startswith("api/") or full_path == "health":
+    # Don't intercept API or system routes
+    if full_path == "api" or full_path.startswith("api/") or full_path in {"health", "docs", "redoc", "openapi"}:
         return JSONResponse(status_code=404, content={"detail": "Not found"})
     index = STATIC_DIR / "index.html"
     if index.exists():

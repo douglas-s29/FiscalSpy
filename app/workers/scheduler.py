@@ -5,6 +5,7 @@ Enqueues periodic jobs into the ARQ worker pool.
 
 import asyncio
 import logging
+from datetime import datetime, timezone
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -59,6 +60,7 @@ def main():
         trigger=IntervalTrigger(minutes=30),
         id="sync_monitors",
         replace_existing=True,
+        next_run_time=datetime.now(timezone.utc),
     )
 
     scheduler.add_job(

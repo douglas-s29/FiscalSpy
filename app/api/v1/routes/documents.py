@@ -225,7 +225,7 @@ async def enviar_manifestacao(
     if not org.cnpj:
         raise HTTPException(status_code=400, detail="CNPJ da organização não configurado")
 
-    svc = SefazService()
+    svc, _, _ = _build_sefaz_service(org, cnpj=org.cnpj)
     sefaz_r = await svc.enviar_manifestacao(
         cnpj=org.cnpj.replace(".", "").replace("/", "").replace("-", ""),
         chave=doc.chave_acesso,

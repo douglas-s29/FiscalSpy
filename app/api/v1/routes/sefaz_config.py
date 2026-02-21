@@ -218,8 +218,16 @@ async def sync_cnpj(
                 codigo_acesso=codigo,
                 ult_nsu="000000000000000",
             )
-        else:
+        elif svc.auth_mode == "certificado":
             result = await svc.distribuicao_dfe(cnpj=cnpj, ult_nsu="000000000000000")
+        else:
+            return {
+                "success": False,
+                "new_documents": 0,
+                "total_found": 0,
+                "auth_mode": svc.auth_mode,
+                "error": "Nenhum modo de autenticação configurado. Vá em Configurações SEFAZ e configure um certificado A1 ou código de acesso.",
+            }
         created = 0
         if result.success:
             for doc in result.documents:
