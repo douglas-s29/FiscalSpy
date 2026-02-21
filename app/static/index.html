@@ -518,6 +518,8 @@ tbody tr:hover .row-actions { opacity:1; }
               <option value="denegada">Denegada</option>
             </select>
           </div>
+          <div class="field"><label>Emissão de</label><input id="q-data-inicio" type="date"></div>
+          <div class="field"><label>até</label><input id="q-data-fim" type="date"></div>
           <div class="field"><label>Consultar SEFAZ</label>
             <input id="q-chave" autocomplete="off" type="text" placeholder="Chave de acesso (44 dígitos)">
           </div>
@@ -982,11 +984,15 @@ async function loadDocuments(page=1) {
   const cnpj   = document.getElementById('q-cnpj')?.value.replace(/\D/g,'') || '';
   const uf     = document.getElementById('q-uf')?.value || '';
   const status = document.getElementById('q-status')?.value || '';
+  const dataInicio = document.getElementById('q-data-inicio')?.value || '';
+  const dataFim = document.getElementById('q-data-fim')?.value || '';
   let url = `/api/v1/documents?page=${page}&page_size=25`;
   if (currentDocType) url += `&doc_type=${currentDocType}`;
   if (cnpj)   url += `&cnpj=${cnpj}`;
   if (uf)     url += `&uf=${uf}`;
   if (status) url += `&status=${status}`;
+  if (dataInicio) url += `&data_inicio=${dataInicio}`;
+  if (dataFim) url += `&data_fim=${dataFim}`;
   try {
     const data = await api('GET', url);
     if (!data) return;

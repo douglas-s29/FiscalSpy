@@ -28,7 +28,7 @@ def upgrade() -> None:
         sa.Column("cert_pfx_encrypted",  sa.Text(), nullable=True),
         sa.Column("cert_password_hash",  sa.String(255), nullable=True),
         sa.Column("cert_expires_at",     sa.DateTime(timezone=True), nullable=True),
-        sa.Column("extra",              postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column("extra",              JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column("created_at",          sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("updated_at",          sa.DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now()),
     )
