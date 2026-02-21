@@ -14,7 +14,7 @@ from app.core.config import settings
 from app.db.session import AsyncSessionLocal
 from app.models.models import CNPJMonitor, Organization, WebhookDelivery
 from app.services.document import upsert_document
-from app.services.sefaz import SefazService
+from app.services.sefaz import NfseService, SefazService
 from app.services.webhook import deliver_webhook
 
 log = logging.getLogger(__name__)
@@ -67,17 +67,40 @@ async def sync_cnpj(ctx: dict, monitor_id: str) -> dict:
                     ult_nsu="000000000000000",
                 )
             created = 0
+            sync_error = None
             if sefaz_result.success:
+                allowed_types = set()
+                if monitor.monitor_nfe:
+                    allowed_types.add("nfe")
+                if monitor.monitor_cte:
+                    allowed_types.add("cte")
+
                 for sefaz_doc in sefaz_result.documents:
+                    if allowed_types and sefaz_doc.doc_type not in allowed_types:
+                        continue
                     _, is_new = await upsert_document(db, monitor.organization_id, sefaz_doc)
                     if is_new:
                         created += 1
+
+                if monitor.monitor_nfse:
+                    nfse_service = NfseService(cert_pfx_bytes=cert_bytes, cert_password=org.cert_password_hash or "")
+                    nfse_result = await nfse_service.consulta_nfse_cnpj(cnpj)
+                    if nfse_result.success:
+                        for nfse_doc in nfse_result.documents:
+                            _, is_new = await upsert_document(db, monitor.organization_id, nfse_doc)
+                            if is_new:
+                                created += 1
+                    else:
+                        sync_error = nfse_result.error
+
                 await db.commit()
+            else:
+                sync_error = sefaz_result.error
 
             monitor.last_sync_at = datetime.now(timezone.utc)
-            monitor.sync_error = None if sefaz_result.success else sefaz_result.error
+            monitor.sync_error = sync_error
             await db.commit()
-            return {"cnpj": monitor.cnpj, "new_docs": created, "success": sefaz_result.success}
+            return {"cnpj": monitor.cnpj, "new_docs": created, "success": sefaz_result.success and not sync_error, "error": sync_error}
         except Exception as exc:
             monitor.sync_error = str(exc)
             await db.commit()
