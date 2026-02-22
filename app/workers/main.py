@@ -20,6 +20,21 @@ from app.services.webhook import deliver_webhook
 log = logging.getLogger(__name__)
 
 
+def _normalize_sync_error(err: Exception | str | None) -> str | None:
+    if err is None:
+        return None
+    if isinstance(err, str):
+        return err
+
+    msg = str(err)
+    last_attempt = getattr(err, 'last_attempt', None)
+    if last_attempt is not None:
+        root_exc = last_attempt.exception()
+        if root_exc is not None:
+            return str(root_exc)
+    return msg
+
+
 def redis_settings_from_url(url: str) -> RedisSettings:
     from urllib.parse import urlparse
     p = urlparse(url)
@@ -91,21 +106,21 @@ async def sync_cnpj(ctx: dict, monitor_id: str) -> dict:
                             if is_new:
                                 created += 1
                     else:
-                        sync_error = nfse_result.error
+                        sync_error = _normalize_sync_error(nfse_result.error)
 
                 await db.commit()
             else:
-                sync_error = sefaz_result.error
+                sync_error = _normalize_sync_error(sefaz_result.error)
 
             monitor.last_sync_at = datetime.now(timezone.utc)
-            monitor.sync_error = sync_error
+            monitor.sync_error = _normalize_sync_error(sync_error)
             await db.commit()
             return {"cnpj": monitor.cnpj, "new_docs": created, "success": sefaz_result.success and not sync_error, "error": sync_error}
         except Exception as exc:
-            monitor.sync_error = str(exc)
+            monitor.sync_error = _normalize_sync_error(exc)
             await db.commit()
             log.exception("sync_cnpj failed for %s", monitor.cnpj)
-            return {"error": str(exc)}
+            return {"error": _normalize_sync_error(exc)}
         finally:
             await svc.close()
 
