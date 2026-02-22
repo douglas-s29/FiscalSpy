@@ -273,7 +273,7 @@ class SefazService:
         tp_amb = 1 if self.ambiente == "producao" else 2
         body = f"""<distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01">
   <tpAmb>{tp_amb}</tpAmb>
-  <cUFAutor>35</cUFAutor>
+  <cUFAutor>91</cUFAutor>
   <CNPJ>{cnpj_clean}</CNPJ>
   <codAcesso>{codigo_acesso}</codAcesso>
   <distNSU><ultNSU>{ult_nsu}</ultNSU></distNSU>
@@ -306,7 +306,7 @@ class SefazService:
         tp_amb = 1 if self.ambiente == "producao" else 2
         body = f"""<distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01">
   <tpAmb>{tp_amb}</tpAmb>
-  <cUFAutor>35</cUFAutor>
+  <cUFAutor>91</cUFAutor>
   <CNPJ>{cnpj_clean}</CNPJ>
   <distNSU><ultNSU>{ult_nsu}</ultNSU></distNSU>
 </distDFeInt>"""

@@ -94,6 +94,10 @@ if STATIC_DIR.exists():
 async def serve_spa(request: Request, full_path: str = ""):
     if full_path == "api" or full_path.startswith("api/") or full_path in {"health", "docs", "redoc", "openapi"}:
         return JSONResponse(status_code=404, content={"detail": "Not found"})
+    app_html = STATIC_DIR / "app.html"
+    if app_html.exists():
+        return FileResponse(str(app_html))
+
     index = STATIC_DIR / "index.html"
     if index.exists():
         return FileResponse(str(index))
