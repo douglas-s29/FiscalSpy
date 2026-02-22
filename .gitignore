@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+.env.*
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Certificados digitais
+certs/*.pfx
+certs/*.pem
+certs/*.p12
+!certs/.gitkeep
