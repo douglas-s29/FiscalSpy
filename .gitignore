@@ -1,20 +1,42 @@
+# Environment
+.env
+.env.prod
+.env.local
+
+# Python
 __pycache__/
-*.pyc
-*.pyo
-.env
-!.env.example
-.env
-!.env.example
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
 *.egg-info/
 dist/
 build/
-..env
-!.env.example
-.env
-!.env.example
 
-# Certificados digitais
-certs/*.pfx
-certs/*.pem
-certs/*.p12
-!certs/.gitkeep
+# Storage (sensitive)
+backend/storage/
+
+# Node
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Docker
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Alembic
+backend/migrations/versions/*.py
+!backend/migrations/versions/.gitkeep
